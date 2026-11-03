@@ -17,8 +17,8 @@ test("Feed fullscreen pins its source and blocks other autoplay, while explicit 
   class Video extends Media {
     ended = false
     intended = "true"
-    getAttribute() {
-      return this.intended
+    getAttribute(name) {
+      return name === "data-bigv-fullscreen-playing" ? this.intended : null
     }
   }
   const source = new Video()
@@ -67,8 +67,8 @@ test("the MAIN-world guard protects only a playing source in a live PiP session"
   class Video extends Media {
     ended = false
     intended = "true"
-    getAttribute() {
-      return this.intended
+    getAttribute(name) {
+      return name === "data-bigv-pip-playing" ? this.intended : null
     }
   }
   const pipWindow = { closed: false }
@@ -136,8 +136,8 @@ test("only live Reel PiP keeps pagination visible/focused and native state retur
   }
   class Video extends Media {
     ended = false
-    getAttribute() {
-      return "true"
+    getAttribute(name) {
+      return name === "data-bigv-pip-playing" ? "true" : null
     }
   }
   const document = new Doc(),

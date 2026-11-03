@@ -168,6 +168,109 @@ const { chromium } = require("playwright")
     await popup.waitForSelector(
       '.click-mode-options input[value="native"]:checked'
     )
+    const backgroundToggle = popup.getByRole("checkbox", {
+      name: "Keep playing in the background",
+      exact: true
+    })
+    assert.equal(await backgroundToggle.isChecked(), false)
+    // Playwright forces every page to appear focused unless this override is disabled.
+    const mediaSession = await context.newCDPSession(page)
+    await mediaSession.send("Emulation.setFocusEmulationEnabled", {
+      enabled: false
+    })
+    await page.locator("video").evaluate((video) => video.play())
+    await popup.bringToFront()
+    await page.waitForFunction(() => !document.hasFocus())
+    await page.locator("video").evaluate((video) => video.pause())
+    assert.equal(
+      await page.locator("video").evaluate((video) => video.paused),
+      true,
+      "background playback is opt-in"
+    )
+    await backgroundToggle.locator("..").click()
+    assert.equal(
+      await page.locator("video").evaluate((video) => video.paused),
+      true,
+      "enabling never starts a paused video"
+    )
+    await page.locator("video").evaluate((video) => video.play())
+    await page.waitForSelector('video[data-bigv-background-playing="true"]', {
+      state: "attached"
+    })
+    await page.locator("video").evaluate((video) => video.pause())
+    assert.equal(
+      await page.locator("video").evaluate((video) => video.paused),
+      false,
+      "Instagram's unfocused pause is blocked for the selected video"
+    )
+    await backgroundToggle.locator("..").click()
+    await page.waitForSelector("video[data-bigv-background-playing]", {
+      state: "detached"
+    })
+    await page.locator("video").evaluate((video) => video.pause())
+    assert.equal(
+      await page.locator("video").evaluate((video) => video.paused),
+      true
+    )
+    await backgroundToggle.focus()
+    await backgroundToggle.press("Space")
+    const loopToggle = popup.getByRole("checkbox", {
+      name: "Disable video looping",
+      exact: true
+    })
+    assert.equal(await loopToggle.isChecked(), false)
+    await page.locator("video").evaluate((video) => {
+      video.loop = true
+    })
+    await loopToggle.locator("..").click()
+    await page.waitForFunction(() => !document.querySelector("video").loop)
+    assert.equal(
+      (
+        await worker.evaluate(() =>
+          chrome.storage.sync.get("bigv-disable-loop-videos")
+        )
+      )["bigv-disable-loop-videos"],
+      true
+    )
+    await page.locator("video").evaluate(async (video) => {
+      window.scriptedReplayAttempts = 0
+      window.scriptedReplay = () => {
+        window.scriptedReplayAttempts++
+        video.currentTime = 0
+        void video.play()
+      }
+      video.addEventListener("ended", window.scriptedReplay)
+      video.currentTime = video.duration - 0.3
+      await video.play()
+    })
+    await page.waitForFunction(() => {
+      const video = document.querySelector("video")
+      return video.ended && video.paused && !video.loop
+    })
+    assert.equal(
+      await page.evaluate(() => window.scriptedReplayAttempts),
+      1,
+      "page-world replay was attempted and blocked"
+    )
+    await page
+      .locator("video")
+      .evaluate((video) =>
+        video.removeEventListener("ended", window.scriptedReplay)
+      )
+    await page.locator("video").hover()
+    await page.keyboard.press("k")
+    await page.waitForFunction(() => {
+      const video = document.querySelector("video")
+      return !video.paused && !video.ended
+    })
+    await page.keyboard.press("k")
+    await loopToggle.focus()
+    await loopToggle.press("Space")
+    await page.waitForFunction(() => document.querySelector("video").loop)
+    assert.equal(
+      await page.locator("video").evaluate((video) => video.paused),
+      true
+    )
     await popup.locator(".controller .switch").click()
     await page.waitForSelector("[data-bigv-controller]", { state: "detached" })
     await popup.locator(".controller .switch").click()
@@ -235,8 +338,40 @@ const { chromium } = require("playwright")
         .evaluate((el) => getComputedStyle(el).visibility),
       "visible"
     )
+    await worker.evaluate(() =>
+      chrome.storage.sync.set({ "bigv-disable-loop-videos": true })
+    )
+    await page.waitForSelector('video[data-bigv-loop-disabled="true"]', {
+      state: "attached"
+    })
+    await page.waitForFunction(
+      () => document.querySelector("video").readyState >= 2
+    )
+    await page.locator("video").evaluate(async (video) => {
+      document.addEventListener("keydown", (event) => {
+        if (event.key === " " && !event.defaultPrevented)
+          void (video.paused ? video.play() : video.pause())
+      })
+      video.currentTime = video.duration - 0.3
+      await video.play()
+    })
+    await page.waitForSelector('video[data-bigv-loop-ended="true"]', {
+      state: "attached"
+    })
+    await page.bringToFront()
+    await page.locator("video").hover()
+    await page.keyboard.press("Space")
+    await page.waitForFunction(() => {
+      const video = document.querySelector("video")
+      return !video.paused && !video.ended && video.currentTime < 1
+    })
+    await page.keyboard.press("k")
+    assert.equal(
+      await page.locator("video").evaluate((video) => video.paused),
+      true
+    )
     console.log(
-      "Real extension: MAIN at document_start, content script, legacy settings, keyboard seek/play/pause/mute/volume with real media and saved audio, shortcut reference, live popup changes, welcome redirect, update opt-out and native audio identification without React metadata passed."
+      "Real extension: MAIN at document_start, real media, scripted loop prevention and explicit replay, opt-in background playback and live opt-out, legacy settings, keyboard controls, popup changes, welcome redirect, update opt-out and native audio identification passed."
     )
   } finally {
     await context.close()

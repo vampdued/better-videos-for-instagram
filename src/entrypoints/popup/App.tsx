@@ -65,6 +65,15 @@ export default function Popup() {
   )
 
   const [clickMode, setClickMode] = useClickMode()
+  const [disableLoopVideos, setDisableLoopVideos] = useSetting(
+    settings.disableLoopVideos
+  )
+  const [backgroundPlayback, setBackgroundPlayback] = useSetting(
+    settings.backgroundPlayback
+  )
+  const [keyboardShortcutsEnabled, setKeyboardShortcutsEnabled] = useSetting(
+    settings.keyboardShortcutsEnabled
+  )
   const modeLabels = {
     native: "clickModeNative",
     pause: "clickModePause",
@@ -168,6 +177,48 @@ export default function Popup() {
 
         <div className="setting">
           <div>
+            <strong>{t("disableLoopVideosLabel")}</strong>
+            <span id="disable-loop-description">
+              {t("disableLoopVideosDescription")}
+            </span>
+          </div>
+          <label className="small-switch">
+            <input
+              type="checkbox"
+              aria-label={t("disableLoopVideosLabel")}
+              aria-describedby="disable-loop-description"
+              checked={disableLoopVideos}
+              onChange={(event) =>
+                void setDisableLoopVideos(event.target.checked)
+              }
+            />
+            <span />
+          </label>
+        </div>
+
+        <div className="setting">
+          <div>
+            <strong>{t("backgroundPlaybackLabel")}</strong>
+            <span id="background-playback-description">
+              {t("backgroundPlaybackDescription")}
+            </span>
+          </div>
+          <label className="small-switch">
+            <input
+              type="checkbox"
+              aria-label={t("backgroundPlaybackLabel")}
+              aria-describedby="background-playback-description"
+              checked={backgroundPlayback}
+              onChange={(event) =>
+                void setBackgroundPlayback(event.target.checked)
+              }
+            />
+            <span />
+          </label>
+        </div>
+
+        <div className="setting">
+          <div>
             <strong>{t("volumeReductionLabel")}</strong>
             <span>{t("volumeReductionDescription")}</span>
           </div>
@@ -209,6 +260,26 @@ export default function Popup() {
               checked={pauseOnComments}
               onChange={(event) =>
                 void setPauseOnComments(event.target.checked)
+              }
+            />
+            <span />
+          </label>
+        </div>
+        <div className="setting">
+          <div>
+            <strong>{t("keyboardShortcutsLabel")}</strong>
+            <span id="keyboard-shortcuts-description">
+              {t("keyboardShortcutsDescription")}
+            </span>
+          </div>
+          <label className="small-switch">
+            <input
+              type="checkbox"
+              aria-label={t("keyboardShortcutsLabel")}
+              aria-describedby="keyboard-shortcuts-description"
+              checked={keyboardShortcutsEnabled}
+              onChange={(event) =>
+                void setKeyboardShortcutsEnabled(event.target.checked)
               }
             />
             <span />

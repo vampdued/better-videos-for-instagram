@@ -9,8 +9,9 @@ import { settings } from "@/utils/storage/settings"
 
 import { Variant, type DownloadableMedia } from "@/features/player/Injector"
 import { observeAutoSkip } from "@/utils/playback/auto-skip"
+import { disableVideoLoop } from "@/utils/playback/disable-loop"
 import type { ClickMode } from "@/utils/playback/click-mode"
-import { setVideoPlaying } from "@/utils/fullscreen/playback"
+import { setVideoPlaying, setVideoTime } from "@/utils/fullscreen/playback"
 import { pictureInPicture } from "@/utils/pip/controller"
 import { navigateReel } from "@/features/instagram/navigation/reels"
 import {
@@ -72,6 +73,11 @@ export default function Controller({
     ? playbackSpeed
     : 1
   const [pauseOnComments] = useSetting(settings.pauseOnComments)
+  const [disableLoopVideos] = useSetting(settings.disableLoopVideos)
+  useEffect(() => {
+    if (disableLoopVideos && variant !== Variant.Stories)
+      return disableVideoLoop(video)
+  }, [disableLoopVideos, variant, video])
   const [maxVolumeBalance] = useSetting(settings.maxVolumeBalance)
   const volumeLimit =
     100 /
@@ -332,8 +338,10 @@ export default function Controller({
 
   const seek = (percent: number) => {
     if (!Number.isFinite(video.duration) || video.duration <= 0) return
-    video.currentTime =
+    setVideoTime(
+      video,
       (Math.min(Math.max(percent, 0), 100) / 100) * video.duration
+    )
     timeUpdate()
   }
   if (variant === Variant.Stories)

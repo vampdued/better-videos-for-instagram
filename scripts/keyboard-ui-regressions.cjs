@@ -9,6 +9,22 @@ module.exports = async function keyboardRegressions(
   results
 ) {
   for (const target of builds) {
+    const savedOff = await fixture(browser, target, {
+      route: "/reels/fixture/",
+      keyboardShortcuts: false
+    })
+    await savedOff.page.locator("video").hover()
+    await savedOff.page.keyboard.press("k")
+    await savedOff.page.keyboard.press("ArrowRight")
+    assert.equal(
+      await savedOff.page
+        .locator("video")
+        .evaluate((v) => v.paused && v.currentTime === 0),
+      true,
+      "saved shortcut opt-out is respected on startup"
+    )
+    assert.deepEqual(savedOff.errors, [])
+    await savedOff.page.close()
     for (const route of ["/", "/reels/fixture/", "/stories/fixture/1/"]) {
       const { page, errors } = await fixture(browser, target, {
         route,
@@ -99,51 +115,85 @@ module.exports = async function keyboardRegressions(
           await video.hover()
         }
       }
-      await page.keyboard.press("ArrowRight")
-      assert.equal(await video.evaluate((v) => v.currentTime), 7)
-      const feedback = page.locator(".bigv-player-feedback.is-visible")
-      await feedback.waitFor()
-      assert.match(
-        await feedback.getAttribute("aria-label"),
-        /Seek forward · 5 s/
-      )
-      await page.waitForFunction(
-        () =>
-          Number(
-            getComputedStyle(document.querySelector(".bigv-player-feedback"))
-              .opacity
-          ) >= 0.99
-      )
-      if (route === "/reels/fixture/")
-        await page.screenshot({
-          path: path.join(output, `${target}-keyboard-seek.png`)
+      if (route === "/stories/fixture/1/") {
+        await page.evaluate(() => {
+          window.nativeStoryArrows = []
+          document.addEventListener("keydown", (event) => {
+            if (event.key.startsWith("Arrow"))
+              window.nativeStoryArrows.push({
+                key: event.key,
+                prevented: event.defaultPrevented
+              })
+          })
         })
-      // Start a fresh forward sequence after screenshot work, so a slow
-      // screenshot cannot put these presses outside the 800ms HUD window.
-      await page.keyboard.press("ArrowLeft")
-      await page.keyboard.press("ArrowRight")
-      await page.keyboard.press("ArrowRight")
-      assert.equal(await video.evaluate((v) => v.currentTime), 10)
-      await page
-        .getByRole("status", { name: "Seek forward · 8 s", exact: true })
-        .waitFor()
-      assert.match(
-        await feedback.getAttribute("aria-label"),
-        /Seek forward · 8 s/,
-        "repeated seeks report accumulated actual seconds at the boundary"
-      )
-      await video.evaluate((v) => {
-        v.currentTime = 7
-      })
-      await page.keyboard.press("ArrowLeft")
-      assert.equal(await video.evaluate((v) => v.currentTime), 2)
-      await page
-        .getByRole("status", { name: "Seek backward · 5 s", exact: true })
-        .waitFor()
-      assert.match(
-        await feedback.getAttribute("aria-label"),
-        /Seek backward · 5 s/
-      )
+        for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"])
+          await page.keyboard.press(key)
+        assert.equal(await video.evaluate((v) => v.currentTime), 2)
+        assert.equal(await video.evaluate((v) => v.volume), 0.5)
+        assert.equal(
+          await page.evaluate(() => window.nativeStoryArrows.length),
+          4
+        )
+        assert.equal(
+          await page.evaluate(() =>
+            window.nativeStoryArrows.every((e) => !e.prevented)
+          ),
+          true
+        )
+        await page.keyboard.press("l")
+        assert.equal(await video.evaluate((v) => v.currentTime), 10)
+        await page.keyboard.press("j")
+        assert.equal(await video.evaluate((v) => v.currentTime), 0)
+        await video.evaluate((v) => {
+          v.currentTime = 2
+        })
+      } else {
+        await page.keyboard.press("ArrowRight")
+        assert.equal(await video.evaluate((v) => v.currentTime), 7)
+        const feedback = page.locator(".bigv-player-feedback.is-visible")
+        await feedback.waitFor()
+        assert.match(
+          await feedback.getAttribute("aria-label"),
+          /Seek forward · 5 s/
+        )
+        await page.waitForFunction(
+          () =>
+            Number(
+              getComputedStyle(document.querySelector(".bigv-player-feedback"))
+                .opacity
+            ) >= 0.99
+        )
+        if (route === "/reels/fixture/")
+          await page.screenshot({
+            path: path.join(output, `${target}-keyboard-seek.png`)
+          })
+        // Start a fresh forward sequence after screenshot work, so a slow
+        // screenshot cannot put these presses outside the 800ms HUD window.
+        await page.keyboard.press("ArrowLeft")
+        await page.keyboard.press("ArrowRight")
+        await page.keyboard.press("ArrowRight")
+        assert.equal(await video.evaluate((v) => v.currentTime), 10)
+        await page
+          .getByRole("status", { name: "Seek forward · 8 s", exact: true })
+          .waitFor()
+        assert.match(
+          await feedback.getAttribute("aria-label"),
+          /Seek forward · 8 s/,
+          "repeated seeks report accumulated actual seconds at the boundary"
+        )
+        await video.evaluate((v) => {
+          v.currentTime = 7
+        })
+        await page.keyboard.press("ArrowLeft")
+        assert.equal(await video.evaluate((v) => v.currentTime), 2)
+        await page
+          .getByRole("status", { name: "Seek backward · 5 s", exact: true })
+          .waitFor()
+        assert.match(
+          await feedback.getAttribute("aria-label"),
+          /Seek backward · 5 s/
+        )
+      }
       await page.keyboard.press("k")
       assert.equal(await video.evaluate((v) => v.paused), false)
       if (route === "/reels/fixture/") {
@@ -351,6 +401,28 @@ module.exports = async function keyboardRegressions(
       await page.locator(".bigv-pip-button").click()
       const pip = await popupEvent
       await pip.waitForSelector(".bigv-pip-player")
+      // The popup preference applies immediately to both documents and survives
+      // re-enabling without multiplying the playback handler.
+      await page.evaluate(() =>
+        chrome.storage.sync.set({ "bigv-keyboard-shortcuts-enabled": false })
+      )
+      await page.waitForTimeout(100)
+      await page.evaluate(() => document.activeElement.blur())
+      await pip.locator("video").focus()
+      for (const key of ["k", "m", "l", "+", "ArrowRight"]) {
+        await page.keyboard.press(key)
+        await pip.keyboard.press(key)
+      }
+      assert.equal(await video.evaluate((v) => v.currentTime), 2)
+      assert.equal(await video.evaluate((v) => v.paused), true)
+      assert.equal(await video.evaluate((v) => v.muted), false)
+      assert.ok(
+        Math.abs((await video.evaluate((v) => v.volume)) - 95 / 350) < 0.0001
+      )
+      await page.evaluate(() =>
+        chrome.storage.sync.set({ "bigv-keyboard-shortcuts-enabled": true })
+      )
+      await page.waitForTimeout(100)
       await pip.locator("video").focus()
       await pip.keyboard.press("k")
       assert.equal(

@@ -9,8 +9,12 @@ import {
   isVideoInViewport
 } from "@/features/instagram/media/video"
 import { getVideoContainer } from "@/utils/media/container"
+import { settings } from "@/utils/storage/settings"
+import { createSettingStore } from "@/utils/storage/setting"
 
 export function observeInstagramKeyboard(doc: Document = document) {
+  const shortcuts = createSettingStore(settings.keyboardShortcutsEnabled)
+  const stopSetting = shortcuts.subscribe(() => {})
   let selected: HTMLVideoElement | null = null
   let pointer: { x: number; y: number } | null = null
   const videos = () =>
@@ -89,6 +93,8 @@ export function observeInstagramKeyboard(doc: Document = document) {
       return blocked ? null : video
     },
     {
+      enabled: shortcuts.getSnapshot,
+      seekArrows: () => getPageMode(location.pathname) !== "stories",
       volumeArrows: () => getPageMode(location.pathname) === "global",
       spaceToggle: () => getPageMode(location.pathname) !== "reels"
     }
@@ -99,6 +105,7 @@ export function observeInstagramKeyboard(doc: Document = document) {
   doc.documentElement.addEventListener("pointerleave", leave)
   return () => {
     stop()
+    stopSetting()
     doc.removeEventListener("pointerdown", select, true)
     doc.removeEventListener("focusin", select, true)
     doc.removeEventListener("pointermove", move, true)

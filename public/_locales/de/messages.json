@@ -225,6 +225,21 @@
     "message": "Stumm / Ton an"
   },
   "keyboardShortcutsHint": {
-    "message": "Reels: Space behält Instagrams Verhalten; K startet/pausiert. Im Feed, bei Story-Videos und im PiP funktioniert dafür auch Space. Reels/Stories: ↑ / ↓ behält die native Navigation; + / − regelt die Lautstärke. Im Feed/PiP geht das auch mit ↑ / ↓. Im Feed zuerst auf ein Video zeigen oder es auswählen. Textfelder und Menüs behalten ihre Tasten. Foto-Story im PiP: ← / → wechselt die Story."
+    "message": "Reels: Die Leertaste behält Instagrams Verhalten; K startet/pausiert. Feed, Story-Videos und PiP unterstützen auch die Leertaste. Stories: Alle Pfeiltasten bleiben Instagram vorbehalten; J / L spult zurück/vor. Reels: ↑ / ↓ behält die native Navigation. Lautstärke: + / −, in Feed/PiP auch ↑ / ↓. Im Feed zuerst ein Video mit der Maus berühren oder auswählen. Textfelder und Menüs behalten ihre Tasten. Foto-Story-PiP: ← / → wechselt Stories."
+  },
+  "disableLoopVideosLabel": {
+    "message": "Videoschleifen deaktivieren"
+  },
+  "backgroundPlaybackLabel": {
+    "message": "Im Hintergrund weiterspielen"
+  },
+  "backgroundPlaybackDescription": {
+    "message": "Das ausgewählte Video beim Wechseln von Tabs oder Fenstern weiterspielen. Standardmäßig deaktiviert."
+  },
+  "disableLoopVideosDescription": {
+    "message": "Feed- und Reels-Videos am Ende stoppen. Automatisches Überspringen kann weiterhin zum nächsten Reel wechseln."
+  },
+  "keyboardShortcutsDescription": {
+    "message": "Wiedergabe-Tastenkürzel der Erweiterung auf Instagram und im Bild-in-Bild aktivieren."
   }
 }

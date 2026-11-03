@@ -59,6 +59,116 @@ export function installPipPauseGuard() {
     }
     const nativePause = HTMLMediaElement.prototype.pause
     const nativePlay = HTMLMediaElement.prototype.play
+    const loopDisabled = (media: HTMLMediaElement) =>
+      media instanceof HTMLVideoElement &&
+      media.getAttribute("data-bigv-loop-disabled") === "true"
+    const loopEnded = (media: HTMLMediaElement) =>
+      loopDisabled(media) &&
+      media.getAttribute("data-bigv-loop-ended") === "true"
+    // Capture before Instagram's ended handlers can rewind and call play().
+    document.addEventListener?.(
+      "ended",
+      (event) => {
+        const video = event.target
+        if (video instanceof HTMLVideoElement && loopDisabled(video))
+          video.setAttribute("data-bigv-loop-ended", "true")
+      },
+      true
+    )
+    for (const event of ["emptied", "loadstart"])
+      document.addEventListener?.(
+        event,
+        (event) => {
+          if (event.target instanceof HTMLVideoElement)
+            event.target.removeAttribute("data-bigv-loop-ended")
+        },
+        true
+      )
+    const time = Object.getOwnPropertyDescriptor(
+      HTMLMediaElement.prototype,
+      "currentTime"
+    )
+    // Native Reels Space/click replay remains an explicit user action too.
+    const nativeReplay = (event: Event) => {
+      if (
+        !event.isTrusted ||
+        event.defaultPrevented ||
+        !(event.target instanceof Element)
+      )
+        return
+      let video: HTMLVideoElement | null = null
+      if (event instanceof KeyboardEvent) {
+        if (
+          event.key !== " " ||
+          event.ctrlKey ||
+          event.altKey ||
+          event.metaKey ||
+          event.shiftKey ||
+          event.target.closest(
+            'input, textarea, select, button, a[href], [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="slider"], [role="menu"], [role="tablist"]'
+          )
+        )
+          return
+        const visible = Array.from(
+          document.querySelectorAll<HTMLVideoElement>(
+            '[data-bigv-loop-ended="true"]'
+          )
+        ).filter((video) => {
+          const rect = video.getBoundingClientRect()
+          return (
+            rect.width > 0 &&
+            rect.height > 0 &&
+            rect.bottom > 0 &&
+            rect.top < window.innerHeight &&
+            rect.right > 0 &&
+            rect.left < window.innerWidth
+          )
+        })
+        if (visible.length === 1) video = visible[0] ?? null
+      } else {
+        if (
+          event instanceof MouseEvent &&
+          (event.button !== 0 ||
+            event.ctrlKey ||
+            event.altKey ||
+            event.metaKey ||
+            event.shiftKey)
+        )
+          return
+        video =
+          event.target.closest("video") ??
+          event.target.closest('[role="button"]')?.querySelector("video") ??
+          null
+      }
+      if (video && loopEnded(video)) {
+        video.removeAttribute("data-bigv-loop-ended")
+        time?.set?.call(video, 0)
+      }
+    }
+    document.addEventListener?.("click", nativeReplay, true)
+    document.addEventListener?.("keydown", nativeReplay, true)
+    if (time?.get && time.set) {
+      const getTime = time.get
+      const setTime = time.set
+      Object.defineProperty(HTMLMediaElement.prototype, "currentTime", {
+        ...time,
+        set(value: number) {
+          if (
+            loopDisabled(this) &&
+            this.getAttribute("data-bigv-user-seeking") !== "true" &&
+            (loopEnded(this) ||
+              (!this.paused &&
+                Number.isFinite(this.duration) &&
+                this.duration > 0 &&
+                getTime.call(this) >= this.duration - 0.2 &&
+                value <= 0.1 &&
+                value < getTime.call(this)))
+          )
+            return
+          setTime.call(this, value)
+        }
+      })
+    }
     const fullscreenSource = () => {
       const source = document.querySelector?.<HTMLVideoElement>(
         '[data-bigv-fullscreen-source="true"]'
@@ -68,12 +178,21 @@ export function installPipPauseGuard() {
         : null
     }
     HTMLMediaElement.prototype.play = function () {
+      if (loopEnded(this)) return Promise.resolve()
       const source = fullscreenSource()
       if (source && this instanceof HTMLVideoElement && this !== source)
         return Promise.resolve()
       return nativePlay.call(this)
     }
     HTMLMediaElement.prototype.pause = function () {
+      if (
+        this instanceof HTMLVideoElement &&
+        this.getAttribute("data-bigv-background-playing") === "true" &&
+        !this.ended &&
+        !loopEnded(this) &&
+        (reallyHidden() || !reallyFocused())
+      )
+        return
       if (
         this === fullscreenSource() &&
         this.getAttribute("data-bigv-fullscreen-playing") === "true" &&

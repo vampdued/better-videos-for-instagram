@@ -50,6 +50,7 @@ export default class Stories extends IntervalInjector {
   }
   public override injectMethod() {
     const media = getActiveStoryMedia()
+    if (this.activeMedia !== media) this.clearInjected()
     if (
       this.activeMedia &&
       this.activeMedia !== media &&
@@ -73,7 +74,12 @@ export default class Stories extends IntervalInjector {
       (this.photo.image !== media ||
         !this.photo.host.isConnected ||
         this.photo.host.parentElement !== parent ||
-        !this.photo.host.querySelector(".bigv-story-player"))
+        !(
+          this.photo.host.querySelector(".bigv-story-player") ||
+          this.photo.host.ownerDocument.querySelector(
+            `[data-bigv-story-timeline-owner="${this.photo.host.id}"] .bigv-story-player`
+          )
+        ))
     )
       this.removePhoto()
     if (!this.photo) {

@@ -25,7 +25,9 @@ async function fixture(
     linked = false,
     clickMode,
     legacyClick,
-    documentPip = false
+    documentPip = false,
+    keyboardShortcuts,
+    expectControls = true
   } = {}
 ) {
   const base = path.join(root, ".output", target)
@@ -38,7 +40,15 @@ async function fixture(
     fs.readFileSync(path.join(root, `public/_locales/${lang}/messages.json`))
   )
   await page.addInitScript(
-    ({ messages, language, linked, clickMode, legacyClick, documentPip }) => {
+    ({
+      messages,
+      language,
+      linked,
+      clickMode,
+      legacyClick,
+      documentPip,
+      keyboardShortcuts
+    }) => {
       const listeners = new Set()
       const messageListeners = new Set()
       window.diagnose = () =>
@@ -47,6 +57,8 @@ async function fixture(
             fn({ type: "bigv-diagnostics" }, { id: "fixture" }, resolve)
         })
       const values = {}
+      if (keyboardShortcuts !== undefined)
+        values["bigv-keyboard-shortcuts-enabled"] = keyboardShortcuts
       if (clickMode !== undefined)
         values["bigv-click-mode"] = JSON.stringify(clickMode)
       if (legacyClick !== undefined)
@@ -194,7 +206,8 @@ async function fixture(
       linked,
       clickMode,
       legacyClick,
-      documentPip
+      documentPip,
+      keyboardShortcuts
     }
   )
   const player =
@@ -239,11 +252,21 @@ async function fixture(
     for (const js of script.js || [])
       await page.addScriptTag({ path: path.join(base, js) })
   }
-  await page.waitForSelector("[data-bigv-ready]", { timeout: 10000 })
+  if (expectControls)
+    await page.waitForSelector("[data-bigv-ready]", { timeout: 10000 })
+  else
+    await page.waitForFunction(async () => (await window.diagnose())?.enabled)
   return { page, errors }
 }
 
 ;(async () => {
+  const suites = {
+    keyboard: "./keyboard-ui-regressions.cjs",
+    stories: "./story-ui-regressions.cjs",
+    player: "./player-ui-regressions.cjs"
+  }
+  const only = process.env.BIGV_UI_SUITE
+  assert.ok(!only || Object.hasOwn(suites, only), "Unknown BIGV_UI_SUITE")
   const engine = process.env.BIGV_BROWSER === "firefox" ? firefox : chromium
   const browser = await engine.launch({
     headless: true,
@@ -251,27 +274,13 @@ async function fixture(
   })
   const results = []
   try {
-    await require("./keyboard-ui-regressions.cjs")(
-      browser,
-      fixture,
-      builds,
-      output,
-      results
-    )
-    await require("./story-ui-regressions.cjs")(
-      browser,
-      fixture,
-      builds,
-      output,
-      results
-    )
-    await require("./player-ui-regressions.cjs")(
-      browser,
-      fixture,
-      builds,
-      output,
-      results
-    )
+    for (const [name, file] of Object.entries(suites))
+      if (!only || only === name)
+        await require(file)(browser, fixture, builds, output, results)
+    if (only) {
+      console.log(results.join("\n"))
+      return
+    }
     for (const target of builds) {
       for (const lang of ["en", "tr", "ar"]) {
         console.log(`Checking ${target}/${lang}`)
@@ -593,6 +602,31 @@ async function fixture(
     await page.locator(".diagnostics summary").click()
     await page.locator(".keyboard-shortcuts summary").click()
     assert.equal(await page.locator(".keyboard-shortcuts kbd").count(), 8)
+    const shortcutToggle = page.getByRole("checkbox", {
+      name: "Keyboard shortcuts",
+      exact: true
+    })
+    await shortcutToggle.locator("..").click()
+    assert.equal(await shortcutToggle.isChecked(), false)
+    assert.equal(
+      (
+        await page.evaluate(() =>
+          chrome.storage.sync.get("bigv-keyboard-shortcuts-enabled")
+        )
+      )["bigv-keyboard-shortcuts-enabled"],
+      false
+    )
+    await shortcutToggle.focus()
+    await shortcutToggle.press("Space")
+    assert.equal(await shortcutToggle.isChecked(), true)
+    assert.equal(
+      (
+        await page.evaluate(() =>
+          chrome.storage.sync.get("bigv-keyboard-shortcuts-enabled")
+        )
+      )["bigv-keyboard-shortcuts-enabled"],
+      true
+    )
     await page.screenshot({
       path: path.join(output, "popup-keyboard-shortcuts.png"),
       fullPage: true

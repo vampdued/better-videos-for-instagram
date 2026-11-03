@@ -83,7 +83,11 @@
 .bigv-pip-slider-theme
   .better-ig-controller
   .progress-bar-horizontal
-  .baseline:is(:hover, :focus-within, .dragging) {
+  .baseline:is(:hover, .dragging),
+.bigv-pip-slider-theme
+  .better-ig-controller
+  .progress-bar-horizontal
+  .baseline:has(.dragarea:focus-visible:not([data-bigv-pointer-focus])) {
   background: var(--bigv-slider-track-active);
 }
 

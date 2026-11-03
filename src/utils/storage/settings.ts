@@ -46,6 +46,13 @@ export const settings = {
     boolean
   ),
   pauseOnComments: defineSetting("bigv-pause-on-comments", true, boolean),
+  disableLoopVideos: defineSetting("bigv-disable-loop-videos", false, boolean),
+  backgroundPlayback: defineSetting("bigv-background-playback", false, boolean),
+  keyboardShortcutsEnabled: defineSetting(
+    "bigv-keyboard-shortcuts-enabled",
+    true,
+    boolean
+  ),
   maxVolumeBalance: defineSetting(
     "bigv-max-volume-balance",
     100,

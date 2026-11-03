@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react"
 
 import { getVideoContainer } from "@/utils/media/container"
 
-export function usePlayerControls(video: HTMLVideoElement | HTMLImageElement) {
+export function usePlayerControls(
+  video: HTMLVideoElement | HTMLImageElement,
+  interactionRoot?: HTMLElement | null
+) {
   const controlsRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
   const [compact, setCompact] = useState(false)
@@ -11,6 +14,9 @@ export function usePlayerControls(video: HTMLVideoElement | HTMLImageElement) {
     const controls = controlsRef.current
     if (!controls) return
     const surface = getVideoContainer(video)
+    const surfaces = [surface, interactionRoot].filter(
+      (node): node is HTMLElement => Boolean(node)
+    )
     let timer: ReturnType<typeof setTimeout> | undefined
     let pointer: { x: number; y: number } | undefined
 
@@ -33,6 +39,12 @@ export function usePlayerControls(video: HTMLVideoElement | HTMLImageElement) {
             pointer.y >= rect.top &&
             pointer.y <= rect.bottom))
       return (
+        Boolean(
+          interactionRoot?.matches(":hover") ||
+          interactionRoot?.querySelector(
+            ":focus-visible:not([data-bigv-pointer-focus]), .baseline.dragging"
+          )
+        ) ||
         hovered ||
         controls.querySelector(
           ':focus-visible:not([data-bigv-pointer-focus]), [aria-expanded="true"], .baseline.dragging, .better-ig-volume-control.active, input[type="range"]:active'
@@ -72,9 +84,11 @@ export function usePlayerControls(video: HTMLVideoElement | HTMLImageElement) {
     resizeObserver.observe(video)
     // Scrolling a video under a stationary cursor can fire pointerenter.
     // Reveal only on an actual pointer movement or press on the video.
-    for (const event of ["pointermove", "pointerdown"])
-      surface?.addEventListener(event, reveal)
-    surface?.addEventListener("pointerleave", leave)
+    for (const target of surfaces) {
+      for (const event of ["pointermove", "pointerdown"])
+        target.addEventListener(event, reveal)
+      target.addEventListener("pointerleave", leave)
+    }
     for (const event of [
       "pointerenter",
       "pointerup",
@@ -92,9 +106,11 @@ export function usePlayerControls(video: HTMLVideoElement | HTMLImageElement) {
     return () => {
       clearTimer()
       resizeObserver.disconnect()
-      for (const event of ["pointermove", "pointerdown"])
-        surface?.removeEventListener(event, reveal)
-      surface?.removeEventListener("pointerleave", leave)
+      for (const target of surfaces) {
+        for (const event of ["pointermove", "pointerdown"])
+          target.removeEventListener(event, reveal)
+        target.removeEventListener("pointerleave", leave)
+      }
       for (const event of [
         "pointerenter",
         "pointerup",
@@ -109,7 +125,7 @@ export function usePlayerControls(video: HTMLVideoElement | HTMLImageElement) {
       for (const event of ["loadstart", "emptied", "load"])
         video.removeEventListener(event, reset)
     }
-  }, [video])
+  }, [video, interactionRoot])
 
   return { controlsRef, visible, compact }
 }

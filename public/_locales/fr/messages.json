@@ -225,6 +225,21 @@
     "message": "Couper / activer le son"
   },
   "keyboardShortcutsHint": {
-    "message": "Reels : Space conserve le comportement d’Instagram ; K lance/met en pause. Dans le fil, les vidéos Stories et PiP, Space fonctionne aussi pour la lecture. Reels/Stories : ↑ / ↓ conserve la navigation native ; + / − règle le volume. Dans le fil/PiP, ↑ / ↓ règle aussi le volume. Dans le fil, survolez ou sélectionnez une vidéo. Les champs de texte et menus gardent leurs touches. Story photo en PiP : ← / → change de Story."
+    "message": "Reels : Espace conserve le comportement d’Instagram ; K lance/met en pause. Le fil, les vidéos de Stories et PiP acceptent aussi Espace. Stories : toutes les flèches restent réservées à Instagram ; J / L recule/avance. Reels : ↑ / ↓ conserve la navigation native. Volume : + / −, ou ↑ / ↓ dans le fil/PiP. Dans le fil, survolez ou sélectionnez d’abord une vidéo. Les champs de texte et menus conservent leurs touches. Stories photo en PiP : ← / → change de Story."
+  },
+  "disableLoopVideosLabel": {
+    "message": "Désactiver la lecture en boucle"
+  },
+  "backgroundPlaybackLabel": {
+    "message": "Continuer la lecture en arrière-plan"
+  },
+  "backgroundPlaybackDescription": {
+    "message": "Continue la lecture de la vidéo sélectionnée lors d’un changement d’onglet ou de fenêtre. Désactivé par défaut."
+  },
+  "disableLoopVideosDescription": {
+    "message": "Arrête les vidéos du fil et des Reels à la fin. Le passage automatique peut toujours ouvrir le Reel suivant."
+  },
+  "keyboardShortcutsDescription": {
+    "message": "Activer les raccourcis de lecture de l’extension sur Instagram et en incrustation vidéo."
   }
 }

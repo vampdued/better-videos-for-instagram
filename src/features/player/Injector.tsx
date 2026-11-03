@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client"
 import Controller from "@/components/Controller"
 import { isNativeReelClick, type ClickMode } from "@/utils/playback/click-mode"
 import { setVideoPlaying } from "@/utils/fullscreen/playback"
+import { isExplorePreview } from "@/features/instagram/media/explore"
 import {
   isInstagramVideo,
   isVideoInViewport
@@ -52,6 +53,9 @@ export default class Injector {
   public deleted(): void {}
   public wayToInject(): void {}
   public onDelete(_id: string): void {}
+  protected shouldRetainVideo(_video: HTMLVideoElement): boolean {
+    return true
+  }
 
   public setClickMode(mode: ClickMode): void {
     this.clickMode = mode
@@ -110,12 +114,19 @@ export default class Injector {
   protected pruneDisconnected(): void {
     for (const record of [...this.injectedList]) {
       const mounted = record.controller.hasAttribute("data-bigv-ready")
+      const controls =
+        (this.variant === Variant.Stories &&
+          record.controller.ownerDocument.querySelector(
+            `[data-bigv-story-timeline-owner="${record.controller.id}"]`
+          )) ||
+        record.controller
       const intact =
         !mounted ||
-        (record.controller.querySelector(".bigv-player-dock") &&
-          record.controller.querySelector(".better-ig-controller"))
+        (controls.querySelector(".bigv-player-dock") &&
+          controls.querySelector(".better-ig-controller"))
       if (
         record.video.isConnected &&
+        this.shouldRetainVideo(record.video) &&
         record.controller.isConnected &&
         record.controller.parentElement === getVideoContainer(record.video) &&
         intact
@@ -143,6 +154,7 @@ export default class Injector {
     const click = (event: MouseEvent) => {
       if (
         isNativeReelClick(video) ||
+        isExplorePreview(video) ||
         event.button !== 0 ||
         event.ctrlKey ||
         event.metaKey ||
@@ -167,6 +179,7 @@ export default class Injector {
     const preventButtonNavigation = (event: MouseEvent) => {
       if (
         !isNativeReelClick(video) &&
+        !isExplorePreview(video) &&
         event.target instanceof Element &&
         event.target.closest('button, [role="button"]')
       )

@@ -25,9 +25,9 @@
 
 .bigv-controller-host .better-ig-controller {
   pointer-events: auto;
-  width: calc(100% - 16px);
-  left: 8px;
-  bottom: 4px;
+  width: 100%;
+  left: 0;
+  bottom: 0;
 }
 
 .better-ig-controller {
@@ -199,7 +199,9 @@
     .better-ig-controller .progress-bar-horizontal:hover,
     .better-ig-controller .baseline.dragging
   )
-  .bigv-player-dock:not(:has(:focus-visible:not([data-bigv-pointer-focus]))) {
+  .bigv-player-dock:not(.stories):not(.pip):not(
+    :has(:focus-visible:not([data-bigv-pointer-focus]))
+  ) {
   --bigv-dock-events: none;
   opacity: 0;
   pointer-events: none;

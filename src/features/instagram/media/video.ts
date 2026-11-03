@@ -52,17 +52,48 @@ export function getVideoVisibilityScore(video: HTMLVideoElement) {
   return Math.max(visibleRatio - centerPenalty, 0)
 }
 
+export function getVisibleMediaDialog(doc: Document): HTMLElement | null {
+  if (doc.fullscreenElement) return null
+  return (
+    Array.from(
+      doc.querySelectorAll<HTMLElement>(
+        '[role="dialog"], [aria-modal="true"], dialog[open]'
+      )
+    ).find(
+      (dialog) =>
+        dialog.getClientRects().length > 0 &&
+        Array.from(dialog.querySelectorAll("video")).some(
+          (video) => isInstagramVideo(video) && isVideoInViewport(video)
+        )
+    ) ?? null
+  )
+}
+
+export function pauseVideosOutsideDialog(dialog: HTMLElement | null) {
+  if (!dialog) return
+  for (const video of dialog.ownerDocument.querySelectorAll("video"))
+    if (!dialog.contains(video) && isInstagramVideo(video) && !video.paused)
+      video.pause()
+}
+
 export function getActiveInstagramVideo(
   videos: Iterable<HTMLVideoElement> = document.querySelectorAll<HTMLVideoElement>(
     "video"
   )
 ) {
+  const candidates = Array.from(videos)
+  const doc = candidates[0]?.ownerDocument
+  const dialog = doc ? getVisibleMediaDialog(doc) : null
   let activeVideo: HTMLVideoElement | null = null
   let activeScore = 0
   let activePlaying = false
 
-  for (const video of videos) {
-    if (!isInstagramVideo(video) || video.closest('[aria-hidden="true"]'))
+  for (const video of candidates) {
+    if (
+      (dialog && !dialog.contains(video)) ||
+      !isInstagramVideo(video) ||
+      video.closest('[aria-hidden="true"]')
+    )
       continue
 
     const score = getVideoVisibilityScore(video)

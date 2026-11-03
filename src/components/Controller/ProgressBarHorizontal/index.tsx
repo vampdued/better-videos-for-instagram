@@ -211,6 +211,8 @@ export default function ProgressBarHorizontal({
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     delete event.currentTarget.dataset.bigvPointerFocus
+    // Story arrows belong to Instagram, even after clicking the timeline.
+    if (variant === "stories" && event.key.startsWith("Arrow")) return
     if (duration <= 0) return
     const step = (5 / duration) * 100
     const currentProgress = video ? getPlaybackProgress(video) : progressBar

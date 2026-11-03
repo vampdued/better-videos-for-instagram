@@ -1,6 +1,35 @@
 const assert = require("node:assert/strict")
 const path = require("node:path")
 
+async function checkStoryButtonHitAreas(page) {
+  for (const button of await page
+    .locator(".bigv-player-dock.stories button")
+    .all()) {
+    const box = await button.boundingBox()
+    for (const [x, y] of [
+      [2, 2],
+      [box.width - 2, 2],
+      [box.width / 2, box.height / 2],
+      [2, box.height - 2],
+      [box.width - 2, box.height - 2]
+    ]) {
+      const point = { x: box.x + x, y: box.y + y }
+      await page.mouse.move(point.x, point.y)
+      assert.equal(
+        await button.evaluate(
+          (el, point) =>
+            el.ownerDocument
+              .elementFromPoint(point.x, point.y)
+              ?.closest("button") === el,
+          point
+        ),
+        true,
+        "every corner and center of Story buttons receives pointer events above the native header"
+      )
+    }
+  }
+}
+
 module.exports = async function storyUiRegressions(
   browser,
   fixture,
@@ -87,8 +116,16 @@ module.exports = async function storyUiRegressions(
     const tipBox = await tip.boundingBox()
     const timeline = await page.locator(".bigv-story-timeline").boundingBox()
     assert.ok(
-      tipBox.y + tipBox.height <= bounds.y,
-      "tooltip opens above the entire panel, clearing playback controls"
+      tipBox.y + tipBox.height < timeline.y &&
+        timeline.y - tipBox.y - tipBox.height < 24,
+      "Story tooltip stays close to the timeline"
+    )
+    assert.equal(
+      await page
+        .locator(".bigv-player-dock.stories")
+        .evaluate((el) => getComputedStyle(el).opacity),
+      "1",
+      "Story toolbar stays visible over the timeline"
     )
     await page.screenshot({
       path: path.join(output, `${target}-story-controls.png`)
@@ -100,7 +137,10 @@ module.exports = async function storyUiRegressions(
     await page.locator(".bigv-story-timeline .dragarea").hover()
     const narrowPanel = await panel.boundingBox()
     const narrowTip = await tip.boundingBox()
-    assert.ok(narrowTip.y + narrowTip.height <= narrowPanel.y)
+    const narrowTimeline = await page
+      .locator(".bigv-story-timeline")
+      .boundingBox()
+    assert.ok(narrowTimeline.y - narrowTip.y - narrowTip.height < 24)
     for (const button of await panel.locator("button").all()) {
       const box = await button.boundingBox()
       if (box)
@@ -148,6 +188,11 @@ module.exports = async function storyUiRegressions(
     assert.equal(await page.evaluate(() => window.storyIndex), 1)
     assert.equal(await panel.locator(".bigv-story-play").count(), 0)
     await page.locator("#story-media").hover()
+    const photoPip = await page.locator(".bigv-pip-button").boundingBox()
+    assert.ok(
+      photoPip.x > player.x + player.width - 64,
+      "photo Story PiP stays on the right even without a native strip"
+    )
     const popupEvent = page.waitForEvent("popup")
     await page.locator(".bigv-pip-button").click()
     const pip = await popupEvent
@@ -285,9 +330,231 @@ module.exports = async function storyUiRegressions(
         `${target}/stories/native-document-pip: real API opens loaded photo, follows next/previous Story and closes`
       )
     }
+    await page.evaluate(() => window.setStory(0))
+    await page.waitForSelector(".bigv-story-timeline")
+    // Discover the native top strip after the fallback has already mounted.
+    await page.evaluate(() => {
+      const media = document.querySelector(".fixture-player video")
+      const layer = document.createElement("div")
+      layer.id = "story-media-layer"
+      layer.style.cssText =
+        "position:absolute;inset:0;isolation:isolate;z-index:0"
+      media.replaceWith(layer)
+      layer.append(media)
+      window.addStoryHeader = () => {
+        const header = document.createElement("header")
+        header.id = "story-header"
+        header.style.cssText =
+          "position:absolute;inset:0 0 auto;height:100px;z-index:20;overflow:hidden"
+        header.innerHTML =
+          '<div id="story-strip" style="position:absolute;top:4px;left:8px;right:8px;height:3px;display:flex;gap:3px"><div style="flex:1;height:3px;background:#777"><div style="height:3px;width:50%;background:white"></div></div><div style="flex:1;height:3px;background:#777"></div><div style="flex:1;height:3px;background:#777"></div></div><time style="position:absolute;top:20px;left:12px;color:white">1h</time>'
+        document.querySelector(".fixture-player").append(header)
+      }
+      window.addStoryHeader()
+    })
+    await page.waitForSelector("#story-media-layer [data-bigv-ready]")
+    await page.waitForSelector(".bigv-story-player.is-integrated")
+    await page.mouse.move(2, 800)
+    const strip = page.locator("#story-strip")
+    const integratedTimeline = page.locator(".bigv-story-timeline")
+    const nativeBox = await strip.boundingBox()
+    const integratedBox = await integratedTimeline.boundingBox()
+    assert.ok(Math.abs(nativeBox.x - integratedBox.x) < 1)
+    assert.ok(Math.abs(nativeBox.y - integratedBox.y) < 1)
+    assert.ok(Math.abs(nativeBox.width - integratedBox.width) < 1)
+    assert.equal(
+      await strip.evaluate((el) => getComputedStyle(el).opacity),
+      "0"
+    )
+    await page.locator("video").hover()
+    await page.waitForSelector(".bigv-story-player.is-visible")
+    const dock = await page.locator(".bigv-player-dock.stories").boundingBox()
+    assert.ok(
+      dock.width < 60 && dock.height > dock.width,
+      "integrated Story buttons form a narrow right-hand column"
+    )
+    await checkStoryButtonHitAreas(page)
+    await page.locator(".better-ig-volume-button").hover()
+    const volumeDrawer = page.locator(".better-ig-progress-bar-vertical")
+    await volumeDrawer.waitFor({ state: "visible" })
+    const volumeBox = await volumeDrawer.boundingBox()
+    const volumeButton = await page
+      .locator(".better-ig-volume-button")
+      .boundingBox()
+    await page.screenshot({
+      path: path.join(output, `${target}-story-integrated-volume.png`)
+    })
+    assert.ok(
+      volumeBox.x + volumeBox.width < volumeButton.x,
+      "integrated volume drawer opens left of the buttons"
+    )
+    assert.ok(
+      volumeBox.y > nativeBox.y + nativeBox.height,
+      "volume drawer clears the Story progress strip"
+    )
+    await volumeDrawer.click({ position: { x: 2, y: 24 } })
+    assert.ok(
+      await page.locator("video").evaluate((v) => v.volume > 0.6),
+      "the outer volume drawer area is clickable"
+    )
+    const beforeMute = await page.locator("video").evaluate((v) => v.muted)
+    await page
+      .locator(".better-ig-volume-button")
+      .click({ position: { x: 2, y: 2 } })
+    assert.equal(
+      await page.locator("video").evaluate((v) => v.muted),
+      !beforeMute,
+      "the volume button is clickable at its edge"
+    )
+    await page.locator("video").hover()
+    await page.screenshot({
+      path: path.join(output, `${target}-story-integrated.png`)
+    })
+    const slider = integratedTimeline.locator(".dragarea")
+    await slider.click({ position: { x: nativeBox.width * 0.4, y: 8 } })
+    assert.ok(
+      Math.abs(
+        (await page.locator("video").evaluate((v) => v.currentTime)) - 4
+      ) < 0.1,
+      "clicking the native header timeline seeks the video"
+    )
+    const sliderBox = await slider.boundingBox()
+    await page.mouse.move(sliderBox.x + sliderBox.width * 0.25, sliderBox.y + 8)
+    await page.mouse.down()
+    await page.mouse.move(
+      sliderBox.x + sliderBox.width * 0.75,
+      sliderBox.y + 30,
+      { steps: 6 }
+    )
+    await page.mouse.up()
+    assert.ok(
+      Math.abs(
+        (await page.locator("video").evaluate((v) => v.currentTime)) - 7.5
+      ) < 0.1,
+      "Story header timeline keeps pointer capture while dragging outside its strip"
+    )
+    await slider.hover()
+    await page.waitForFunction(
+      () =>
+        getComputedStyle(document.querySelector(".bigv-player-dock.stories"))
+          .opacity === "1"
+    )
+    const beforeArrows = await page
+      .locator("video")
+      .evaluate((v) => ({ time: v.currentTime, volume: v.volume }))
+    for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"])
+      await page.keyboard.press(key)
+    assert.deepEqual(
+      await page
+        .locator("video")
+        .evaluate((v) => ({ time: v.currentTime, volume: v.volume })),
+      beforeArrows,
+      "focused Story timeline does not take over arrow keys"
+    )
+    await slider.hover()
+    const integratedTip = await page
+      .locator(".better-ig-progress-tooltip.visible")
+      .boundingBox()
+    assert.ok(
+      integratedTip.y > nativeBox.y,
+      "top timeline tooltip opens below the strip"
+    )
+    await page
+      .locator(".fixture-player")
+      .evaluate((el) => (el.style.width = "280px"))
+    await page.waitForFunction(
+      () =>
+        Math.abs(
+          document.querySelector("#story-strip").getBoundingClientRect().width -
+            document
+              .querySelector(".bigv-story-timeline")
+              .getBoundingClientRect().width
+        ) < 1
+    )
+    await page.screenshot({
+      path: path.join(output, `${target}-story-integrated-compact.png`)
+    })
+    await page.evaluate(() => window.setStory(1))
+    await page.waitForSelector(
+      "[data-bigv-story-timeline-owner] .bigv-story-player.is-photo"
+    )
+    await page.locator("#story-media").hover()
+    await page.waitForSelector(".bigv-story-player.is-photo.is-visible")
+    await checkStoryButtonHitAreas(page)
+    assert.equal(
+      await strip.evaluate((el) => getComputedStyle(el).opacity),
+      "1",
+      "photo Stories keep the native strip"
+    )
+    assert.equal(await page.locator(".bigv-story-timeline").count(), 0)
+    await page.evaluate(() => window.setStory(0))
+    await page.waitForSelector(
+      ".bigv-story-player.is-integrated .bigv-story-timeline"
+    )
+    assert.equal(
+      await strip.evaluate((el) => getComputedStyle(el).opacity),
+      "0",
+      "video Story reacquires the native strip"
+    )
+    const sourceOwner = page.locator(
+      "#story-media-layer > [data-bigv-controller]"
+    )
+    const ownerBeforeFullscreen = await sourceOwner.getAttribute("id")
+    const pausedBeforeFullscreen = await page
+      .locator("video")
+      .evaluate((v) => v.paused)
+    await page.locator("video").hover()
+    await page.locator(".better-ig-fullscreen-button").click()
+    await page.waitForFunction(() =>
+      document.fullscreenElement?.querySelector(
+        ".bigv-story-player:not(.is-integrated)"
+      )
+    )
+    assert.equal(
+      await page.locator("video").evaluate((v) => v.paused),
+      pausedBeforeFullscreen,
+      "moving Story controls into fullscreen preserves playback intent"
+    )
+    await page.evaluate(() => document.exitFullscreen())
+    await page.waitForSelector(
+      ".bigv-story-player.is-integrated .bigv-story-timeline"
+    )
+    assert.equal(
+      await sourceOwner.getAttribute("id"),
+      ownerBeforeFullscreen,
+      "portal and fullscreen transitions retain the source controller"
+    )
+    await page.evaluate(() => {
+      window.oldStoryStrip = document.querySelector("#story-strip")
+      document.querySelector("#story-header").remove()
+    })
+    await page.waitForFunction(() => {
+      const controls = document.querySelector(".bigv-story-player")
+      return controls && !controls.classList.contains("is-integrated")
+    })
+    assert.equal(
+      await page.evaluate(() =>
+        window.oldStoryStrip.hasAttribute("data-bigv-story-progress")
+      ),
+      false
+    )
+    await page.evaluate(() => window.addStoryHeader())
+    await page.waitForSelector(".bigv-story-player.is-integrated")
+    await page.evaluate(() =>
+      chrome.storage.sync.set({ "bigv-controller-enabled": false })
+    )
+    await page.waitForSelector("[data-bigv-controller]", { state: "detached" })
+    assert.equal(
+      await strip.evaluate((el) => el.hasAttribute("data-bigv-story-progress")),
+      false
+    )
+    assert.equal(
+      await strip.evaluate((el) => getComputedStyle(el).opacity),
+      "1"
+    )
     assert.deepEqual(errors, [])
     results.push(
-      `${target}/stories: centered proportional controls above reply, tooltip upward, native previous/next, photo-first PiP and photo/video/photo following, controls stay hidden on handoff`
+      `${target}/stories: fallback above reply, native top timeline, every corner and center of video/photo controls above a clipped header, fullscreen handoff, resizing/replaced strip recovery, arrow passthrough, disable cleanup, photo-first PiP and photo/video/photo following`
     )
     await page.close()
   }

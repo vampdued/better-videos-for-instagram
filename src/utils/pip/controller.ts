@@ -1,6 +1,7 @@
 import { getUiDirection, t } from "../i18n"
 import type { PageMode } from "../../features/instagram/runtime/page-mode"
 import { PIP_INITIAL_SIZE } from "./window"
+import { allowVideoReplay, setVideoPlaying } from "../fullscreen/playback"
 import { navigateReel } from "../../features/instagram/navigation/reels"
 import { getActiveInstagramVideo } from "../../features/instagram/media/video"
 import {
@@ -76,8 +77,10 @@ export class PictureInPictureController {
     if (!this.source) return
     this.wantsPlayback = playing
     this.markSource()
-    if (playing) this.resumeSource()
-    else this.source.pause()
+    if (playing) {
+      allowVideoReplay(this.source)
+      this.resumeSource()
+    } else void setVideoPlaying(this.source, false)
   }
 
   private markSource() {

@@ -249,6 +249,21 @@
     "message": "Sesi kapat / aç"
   },
   "keyboardShortcutsHint": {
-    "message": "Reels’te Space Instagram’ın davranışını korur; oynat/duraklat için K kullan. Feed, Story videoları ve PiP’de Space ile de oynat/duraklat yapılır. Reels/Story’de ↑ / ↓ Instagram’ın gezinmesini korur; ses için + / − kullan. Feed/PiP’de ↑ / ↓ ile de ses ayarlanır. Feed’de önce videonun üzerine gel veya seç. Yazı alanları ve menüler kendi tuşlarını korur. Fotoğraf Story PiP’de ← / → hikâyeyi değiştirir."
+    "message": "Reels’te Space Instagram’ın davranışını korur; oynat/duraklat için K kullan. Feed, Story videoları ve PiP’de Space ile de oynat/duraklat yapılır. Story’de tüm ok tuşları Instagram’a bırakılır; sarmak için J / L kullan. Reels’te ↑ / ↓ Instagram’ın gezinmesini korur. Ses için + / − kullan; Feed/PiP’de ↑ / ↓ ile de ses ayarlanır. Feed’de önce videonun üzerine gel veya seç. Yazı alanları ve menüler kendi tuşlarını korur. Fotoğraf Story PiP’de ← / → hikâyeyi değiştirir."
+  },
+  "disableLoopVideosLabel": {
+    "message": "Video döngüsünü kapat"
+  },
+  "backgroundPlaybackLabel": {
+    "message": "Arka planda oynatmaya devam et"
+  },
+  "backgroundPlaybackDescription": {
+    "message": "Sekme veya pencere değiştirdiğinde seçili video oynamaya devam eder. Varsayılan olarak kapalıdır."
+  },
+  "disableLoopVideosDescription": {
+    "message": "Akış ve Reels videolarını bitince durdurur. Otomatik geçiş yine sonraki Reel'e geçebilir."
+  },
+  "keyboardShortcutsDescription": {
+    "message": "Instagram ve Resim İçinde Resim’de eklentinin oynatma kısayollarını etkinleştir."
   }
 }

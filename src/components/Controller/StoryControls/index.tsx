@@ -1,7 +1,9 @@
 import { cn } from "cn"
+import { createPortal } from "react-dom"
 
 import { Variant } from "@/features/player/Injector"
 import { usePlayerControls } from "@/hooks/use-player-controls"
+import { useStoryTimeline } from "@/hooks/use-story-timeline"
 import { t } from "@/utils/i18n"
 import FullscreenButton from "../Buttons/Fullscreen"
 import PictureInPictureButton from "../Buttons/PictureInPicture"
@@ -32,15 +34,45 @@ export default function StoryControls({
   onProgress: (progress: number) => void
   onDragging: (dragging: boolean) => void
 }) {
-  const { controlsRef, visible, compact } = usePlayerControls(video)
-  return (
+  const timeline = useStoryTimeline(video, controllerId)
+  const { controlsRef, visible, compact } = usePlayerControls(video, timeline)
+  const progressBar = (
+    <div
+      className="bigv-story-timeline"
+      style={
+        timeline
+          ? {
+              left: "var(--bigv-story-timeline-left)",
+              top: "var(--bigv-story-timeline-top)",
+              width: "var(--bigv-story-timeline-width)"
+            }
+          : undefined
+      }>
+      {!timeline && <span>{formatTime(video.currentTime)}</span>}
+      <div className="better-ig-controller stories">
+        <ProgressBarHorizontal
+          video={video}
+          variant={Variant.Stories}
+          progress={progress}
+          videoDuration={duration}
+          showVideoPreview={false}
+          onProgress={onProgress}
+          onDragging={onDragging}
+        />
+      </div>
+      {!timeline && <span>{formatTime(duration)}</span>}
+    </div>
+  )
+  const controls = (
     <div
       ref={controlsRef}
       className={cn("bigv-story-player bigv-pip-slider-theme bigv-control", {
         "is-visible": visible,
-        "is-compact": compact
+        "is-compact": compact,
+        "is-integrated": Boolean(timeline)
       })}
       onClick={(event) => event.stopPropagation()}>
+      {progressBar}
       <div
         className="bigv-player-dock stories bigv-story-toolbar is-visible"
         role="group"
@@ -49,13 +81,15 @@ export default function StoryControls({
           video={video}
           variant={Variant.Stories}
           placement="dock"
-          orientation="horizontal"
+          orientation={timeline ? "vertical" : "horizontal"}
         />
-        <div className="bigv-story-transport">
-          <StoryNavigation direction={-1} />
-          <PlayPause video={video} />
-          <StoryNavigation direction={1} />
-        </div>
+        {!timeline && (
+          <div className="bigv-story-transport">
+            <StoryNavigation direction={-1} />
+            <PlayPause video={video} />
+            <StoryNavigation direction={1} />
+          </div>
+        )}
         <div className="bigv-story-options">
           <PlaybackSpeed placement="dock" />
           <PictureInPictureButton video={video} followStories />
@@ -67,21 +101,7 @@ export default function StoryControls({
           />
         </div>
       </div>
-      <div className="bigv-story-timeline">
-        <span>{formatTime(video.currentTime)}</span>
-        <div className="better-ig-controller stories">
-          <ProgressBarHorizontal
-            video={video}
-            variant={Variant.Stories}
-            progress={progress}
-            videoDuration={duration}
-            showVideoPreview={false}
-            onProgress={onProgress}
-            onDragging={onDragging}
-          />
-        </div>
-        <span>{formatTime(duration)}</span>
-      </div>
     </div>
   )
+  return timeline ? createPortal(controls, timeline) : controls
 }

@@ -1,6 +1,43 @@
 const assert = require("node:assert/strict")
 const path = require("node:path")
 
+async function checkTimelineFocus(page) {
+  const slider = page.locator(".progress-bar-horizontal .dragarea").first()
+  await slider.click()
+  assert.equal(
+    await slider.evaluate((el) => getComputedStyle(el).outlineStyle),
+    "none",
+    "pointer seeking never leaves a focus ring"
+  )
+  await page.mouse.move(2, 2)
+  await page.waitForFunction(() => {
+    const baseline = document.querySelector(
+      ".progress-bar-horizontal .baseline"
+    )
+    return (
+      baseline.getBoundingClientRect().height <= 3.1 &&
+      (baseline.closest(".bigv-pip-player") ||
+        getComputedStyle(baseline.querySelector(".progress-handle")).opacity ===
+          "0")
+    )
+  })
+  await slider.press("Home")
+  assert.equal(
+    await slider.evaluate((el) => getComputedStyle(el).outlineStyle),
+    "solid",
+    "keyboard seeking retains a visible focus indicator"
+  )
+  await slider.evaluate((el) => el.blur())
+  if (await page.locator(".bigv-pip-timeline").count()) {
+    const timeline = await page.locator(".bigv-pip-timeline").boundingBox()
+    const toolbar = await page.locator(".bigv-player-dock.pip").boundingBox()
+    assert.ok(
+      timeline.y + timeline.height <= toolbar.y,
+      "PiP timeline stays above its toolbar"
+    )
+  }
+}
+
 module.exports = async function playerUiRegressions(
   browser,
   fixture,
@@ -11,10 +48,250 @@ module.exports = async function playerUiRegressions(
   for (const target of builds) {
     for (const mode of ["native", "pause", "pause-reels"]) {
       const { page, errors } = await fixture(browser, target, {
+        route: "/explore/",
+        linked: true,
+        clickMode: mode,
+        expectControls: false
+      })
+      assert.equal(await page.locator("[data-bigv-controller]").count(), 0)
+      assert.equal(await page.locator("video[bigv-injected]").count(), 0)
+      await page.locator("#native-link").evaluate((link) => {
+        link.addEventListener("click", (event) => event.preventDefault())
+      })
+      for (const href of ["/reel/destination/", "/p/destination/"]) {
+        await page.locator("#native-link").evaluate((link, href) => {
+          link.href = href
+        }, href)
+        await page.locator("video").click({ position: { x: 180, y: 280 } })
+        assert.equal(
+          await page.locator("video").evaluate((v) => v.paused),
+          true
+        )
+      }
+      assert.equal(await page.evaluate(() => window.nativeReelClicks), 2)
+      // A post opened over Explore is a full player, even if the URL stays put.
+      await page.locator(".fixture-player").evaluate((player) => {
+        player.setAttribute("role", "dialog")
+      })
+      await page.waitForSelector("[data-bigv-ready]")
+      await page.locator("video").click({ position: { x: 180, y: 280 } })
+      assert.equal(
+        await page.locator("video").evaluate((v) => v.paused),
+        mode === "native"
+      )
+      await page.locator(".fixture-player").evaluate((player) => {
+        player.removeAttribute("role")
+        history.pushState({}, "", "/")
+        player.querySelector("video").pause()
+      })
+      await page.waitForSelector("[data-bigv-ready]")
+      await page.locator("video").click({ position: { x: 180, y: 280 } })
+      assert.equal(
+        await page.locator("video").evaluate((v) => v.paused),
+        mode === "native",
+        "reused Feed nodes retain the selected click mode"
+      )
+      assert.deepEqual(errors, [])
+      results.push(
+        `${target}/explore/${mode}: previews have no controls and open natively; dialog and reused Feed players keep their click mode`
+      )
+      await page.close()
+    }
+    for (const openedRoute of ["/p/opened/", "/reel/opened/"]) {
+      const { page, errors } = await fixture(browser, target, {
+        route: "/",
+        linked: true,
+        clickMode: "pause"
+      })
+      await page.evaluate(() =>
+        chrome.storage.sync.set({ "bigv-background-playback": true })
+      )
+      await page.locator("video").evaluate(async (video) => {
+        await video.play()
+        history.pushState({}, "", "/explore/")
+      })
+      await page.waitForSelector("[data-bigv-controller]", {
+        state: "detached"
+      })
+      await page.locator("#native-link").evaluate((link, openedRoute) => {
+        link.addEventListener("click", (event) => {
+          event.preventDefault()
+          const dialog = document.createElement("div")
+          dialog.id = "opened-post"
+          dialog.setAttribute("role", "dialog")
+          dialog.tabIndex = -1
+          dialog.style.cssText =
+            "position:fixed;inset:0;z-index:20;background:#222"
+          const player = document.createElement("article")
+          player.style.cssText = "position:relative;width:360px;height:600px"
+          const video = document.createElement("video")
+          video.src = "https://scontent.cdninstagram.com/opened.mp4"
+          video.style.cssText = "width:100%;height:100%"
+          window.configureVideo(video)
+          player.append(video)
+          dialog.append(player)
+          document.body.append(dialog)
+          dialog.focus()
+          history.pushState({}, "", openedRoute)
+          void video.play()
+        })
+      }, openedRoute)
+      await page
+        .locator("#native-link video")
+        .click({ position: { x: 180, y: 280 } })
+      await page.waitForSelector("#opened-post [data-bigv-ready]")
+      await page.waitForFunction(
+        () => document.querySelector("#native-link video").paused
+      )
+      assert.equal(
+        await page.locator("#native-link [data-bigv-controller]").count(),
+        0
+      )
+      assert.equal(
+        await page.locator("#opened-post video").evaluate((v) => v.paused),
+        false
+      )
+      // A late native autoplay must not bring the obscured preview back.
+      await page.locator("#native-link video").evaluate((v) => v.play())
+      await page.waitForFunction(
+        () => document.querySelector("#native-link video").paused
+      )
+      await page
+        .locator("#opened-post video")
+        .hover({ position: { x: 180, y: 280 } })
+      await page.keyboard.press("k")
+      assert.equal(
+        await page.locator("#opened-post video").evaluate((v) => v.paused),
+        true
+      )
+      await page.evaluate(() => {
+        document.querySelector("#opened-post").remove()
+        history.pushState({}, "", "/explore/")
+      })
+      await page.waitForFunction(
+        async () => (await window.diagnose()).controllers === 0
+      )
+      assert.equal(
+        await page.locator("#native-link video").evaluate((v) => v.paused),
+        true
+      )
+      assert.equal(await page.locator("[data-bigv-controller]").count(), 0)
+      assert.deepEqual(errors, [])
+      results.push(
+        `${target}/explore/modal${openedRoute}: old controls removed, background playback stopped across URL changes and late autoplay; only the opened video is controlled`
+      )
+      await page.close()
+    }
+    {
+      const { page, errors } = await fixture(browser, target, { route: "/" })
+      await page.evaluate(() =>
+        chrome.storage.sync.set({ "bigv-background-playback": true })
+      )
+      assert.equal(
+        await page.locator("video").evaluate((video) => video.paused),
+        true
+      )
+      await page.locator("video").evaluate((video) => video.play())
+      await page.waitForSelector('video[data-bigv-background-playing="true"]', {
+        state: "attached"
+      })
+      await page.evaluate(() => {
+        const player = document.createElement("article")
+        player.id = "other-feed"
+        player.style.cssText =
+          "position:fixed;right:0;top:20px;width:200px;height:300px"
+        const video = document.createElement("video")
+        video.style.cssText = "width:100%;height:100%"
+        video.src = "https://scontent.cdninstagram.com/other.mp4"
+        window.configureVideo(video)
+        player.append(video)
+        document.body.append(player)
+      })
+      await page.waitForSelector("#other-feed [data-bigv-ready]")
+      await page
+        .locator("#other-feed video")
+        .click({ position: { x: 70, y: 100 } })
+      await page.waitForSelector(
+        '#other-feed video[data-bigv-background-playing="true"]',
+        { state: "attached" }
+      )
+      assert.equal(
+        await page
+          .locator('video[data-bigv-background-playing="true"]')
+          .count(),
+        1
+      )
+      await page.keyboard.press("k")
+      await page.waitForSelector("video[data-bigv-background-playing]", {
+        state: "detached"
+      })
+      assert.equal(
+        await page
+          .locator("#other-feed video")
+          .evaluate((video) => video.paused),
+        true
+      )
+      await page.keyboard.press("k")
+      await page.waitForSelector(
+        '#other-feed video[data-bigv-background-playing="true"]',
+        { state: "attached" }
+      )
+      await page.evaluate(() =>
+        chrome.storage.sync.set({ "bigv-controller-enabled": false })
+      )
+      await page.waitForSelector("video[data-bigv-background-playing]", {
+        state: "detached"
+      })
+      assert.deepEqual(errors, [])
+      results.push(
+        `${target}/background: no autoplay on enable, only the selected Feed source is protected, explicit pause and extension disable clear protection`
+      )
+      await page.close()
+    }
+    for (const route of ["/", "/reels/fixture/"]) {
+      const { page, errors } = await fixture(browser, target, { route })
+      await page.locator("video").evaluate((video) => {
+        video.loop = true
+      })
+      await page.evaluate(() =>
+        chrome.storage.sync.set({ "bigv-disable-loop-videos": true })
+      )
+      await page.waitForFunction(() => !document.querySelector("video").loop)
+      await page.locator("video").evaluate((video) => {
+        video.loop = true
+        video.src = "https://scontent.cdninstagram.com/reused.mp4"
+        video.dispatchEvent(new Event("loadedmetadata"))
+      })
+      await page.waitForFunction(() => !document.querySelector("video").loop)
+      await page.evaluate(() =>
+        chrome.storage.sync.set({ "bigv-disable-loop-videos": false })
+      )
+      await page.waitForFunction(() => document.querySelector("video").loop)
+      assert.equal(await page.locator("video").evaluate((v) => v.paused), true)
+      await page.evaluate(() =>
+        chrome.storage.sync.set({ "bigv-disable-loop-videos": true })
+      )
+      await page.waitForFunction(() => !document.querySelector("video").loop)
+      await page.evaluate(() =>
+        chrome.storage.sync.set({ "bigv-controller-enabled": false })
+      )
+      await page.waitForSelector("[data-bigv-controller]", {
+        state: "detached"
+      })
+      assert.equal(await page.locator("video").evaluate((v) => v.loop), true)
+      assert.deepEqual(errors, [])
+      results.push(
+        `${target}${route}: loop switch applies live, survives reused media, restores on disable without playback`
+      )
+      await page.close()
+    }
+    for (const mode of ["native", "pause", "pause-reels"]) {
+      const { page, errors } = await fixture(browser, target, {
         route: "/",
         linked: true,
         clickMode: mode
       })
+      if (mode === "native") await checkTimelineFocus(page)
       await page.locator("video").evaluate((video) => video.play())
       await page.locator("video").hover()
       await page.locator(".better-ig-fullscreen-button").click()
@@ -126,6 +403,7 @@ module.exports = async function playerUiRegressions(
     }
     {
       const { page, errors } = await fixture(browser, target, { width: 390 })
+      await checkTimelineFocus(page)
       const nativeVolume = require("node:fs").readFileSync(
         path.resolve(
           __dirname,
@@ -313,6 +591,7 @@ module.exports = async function playerUiRegressions(
       await page.locator(".bigv-pip-button").click()
       const pip = await popupEvent
       await pip.waitForSelector(".bigv-pip-player.is-visible")
+      await checkTimelineFocus(pip)
       await pip.evaluate(() => {
         window.originalPanel = document.querySelector(".bigv-pip-player")
       })

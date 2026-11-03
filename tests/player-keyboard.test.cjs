@@ -22,6 +22,9 @@ function video() {
     muted: false,
     paused: true,
     hasAttribute: () => false,
+    getAttribute: () => null,
+    setAttribute() {},
+    removeAttribute() {},
     play() {
       this.paused = false
       return Promise.resolve()
@@ -108,6 +111,48 @@ test("vertical navigation passes through without prevention while plus/minus ret
   assert.equal(v.volume, 0.55)
   assert.equal(native, 2)
   stop()
+})
+test("Story arrows and disabled shortcuts pass through; policies update without duplicate listeners", () => {
+  const doc = new EventTarget(),
+    v = video()
+  let enabled = true,
+    story = true,
+    native = 0
+  const stop = observePlayerKeyboard(doc, () => v, {
+    enabled: () => enabled,
+    seekArrows: () => !story,
+    volumeArrows: () => !story
+  })
+  doc.addEventListener("keydown", () => native++)
+  for (const name of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
+    const event = new Key(name)
+    doc.dispatchEvent(event)
+    assert.equal(event.defaultPrevented, false)
+  }
+  assert.equal(native, 4)
+  assert.equal(v.currentTime, 50)
+  assert.equal(v.volume, 0.5)
+  doc.dispatchEvent(new Key("l"))
+  assert.equal(v.currentTime, 60)
+  enabled = false
+  for (const name of ["k", "m", "l", "+", " "]) {
+    const event = new Key(name)
+    doc.dispatchEvent(event)
+    assert.equal(event.defaultPrevented, false)
+  }
+  assert.equal(v.currentTime, 60)
+  assert.equal(v.volume, 0.5)
+  assert.equal(v.paused, true)
+  assert.equal(v.muted, false)
+  enabled = true
+  story = false
+  doc.dispatchEvent(new Key("ArrowRight"))
+  assert.equal(v.currentTime, 65)
+  doc.dispatchEvent(new Key("k"))
+  assert.equal(v.paused, false)
+  stop()
+  doc.dispatchEvent(new Key("k"))
+  assert.equal(v.paused, false)
 })
 test("Reels Space and its repeats stay native; K still toggles and route changes restore Space", () => {
   const doc = new EventTarget(),

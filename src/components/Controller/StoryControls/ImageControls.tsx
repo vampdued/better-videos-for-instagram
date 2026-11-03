@@ -1,6 +1,8 @@
 import { cn } from "cn"
 import { useEffect } from "react"
+import { createPortal } from "react-dom"
 import { usePlayerControls } from "@/hooks/use-player-controls"
+import { useStoryTimeline } from "@/hooks/use-story-timeline"
 import { t } from "@/utils/i18n"
 import PictureInPictureButton from "../Buttons/PictureInPicture"
 import StoryNavigation from "../Buttons/StoryNavigation"
@@ -13,14 +15,15 @@ export default function ImageControls({
   image: HTMLImageElement
   id: string
 }) {
-  const { controlsRef, visible } = usePlayerControls(image)
+  const layer = useStoryTimeline(image, id, false)
+  const { controlsRef, visible } = usePlayerControls(image, layer)
   useEffect(() => {
     document.getElementById(id)?.setAttribute("data-bigv-ready", "")
   }, [id])
-  return (
+  const controls = (
     <div
       ref={controlsRef}
-      className={cn("bigv-story-player bigv-control is-photo", {
+      className={cn("bigv-story-player bigv-control is-photo is-integrated", {
         "is-visible": visible
       })}
       onClick={(event) => event.stopPropagation()}>
@@ -35,4 +38,5 @@ export default function ImageControls({
       <div className="better-ig-controller" />
     </div>
   )
+  return layer ? createPortal(controls, layer) : controls
 }

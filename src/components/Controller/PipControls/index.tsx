@@ -11,6 +11,7 @@ import { createRoot } from "react-dom/client"
 import { useLocalStorage } from "usehooks-ts"
 import { useSetting } from "@/hooks/use-setting"
 import { settings } from "@/utils/storage/settings"
+import { setVideoTime } from "@/utils/fullscreen/playback"
 
 import { t } from "@/utils/i18n"
 import type {
@@ -54,10 +55,14 @@ function PipControls({
   const [, setVolume] = useLocalStorage("better-instagram-videos-volume", 0.5)
   const [, setMuted] = useLocalStorage("better-instagram-videos-muted", false)
   const [balance] = useSetting(settings.maxVolumeBalance)
+  const [keyboardShortcutsEnabled] = useSetting(
+    settings.keyboardShortcutsEnabled
+  )
   const volumeLimit =
     100 / (Number.isFinite(balance) ? Math.max(balance, 100) : 100)
   useEffect(() => {
     return observePlayerKeyboard(ownerDocument, () => video ?? null, {
+      enabled: () => keyboardShortcutsEnabled,
       setPlaying: (_video, playing) => actions.setPlaying(playing),
       volumeLimit,
       setAudio: (source, audio) => {
@@ -71,7 +76,15 @@ function PipControls({
               direction === 1 ? actions.next() : actions.previous()
           : undefined
     })
-  }, [video, actions, ownerDocument, volumeLimit, setVolume, setMuted])
+  }, [
+    video,
+    actions,
+    ownerDocument,
+    volumeLimit,
+    setVolume,
+    setMuted,
+    keyboardShortcutsEnabled
+  ])
   const resumeAfterSeek = useRef(false)
   const onDragging = useCallback(
     (dragging: boolean) => {
@@ -123,6 +136,24 @@ function PipControls({
       <div
         ref={panelRef}
         className={`bigv-pip-player bigv-pip-slider-theme ${visible ? "is-visible" : ""}`}>
+        {video && (
+          <div className="bigv-pip-timeline">
+            <span className="bigv-pip-time">{formatTime(time.current)}</span>
+            <div className="better-ig-controller">
+              <ProgressBarHorizontal
+                video={video}
+                progress={progress}
+                showVideoPreview={false}
+                onProgress={(percent) => {
+                  if (Number.isFinite(video.duration) && video.duration > 0)
+                    setVideoTime(video, (percent / 100) * video.duration)
+                }}
+                onDragging={onDragging}
+              />
+            </div>
+            <span className="bigv-pip-time">{formatTime(time.duration)}</span>
+          </div>
+        )}
         <div
           className="bigv-player-dock pip is-compact is-visible"
           role="toolbar"
@@ -198,24 +229,6 @@ function PipControls({
             </button>
           </div>
         </div>
-        {video && (
-          <div className="bigv-pip-timeline">
-            <span className="bigv-pip-time">{formatTime(time.current)}</span>
-            <div className="better-ig-controller">
-              <ProgressBarHorizontal
-                video={video}
-                progress={progress}
-                showVideoPreview={false}
-                onProgress={(percent) => {
-                  if (Number.isFinite(video.duration) && video.duration > 0)
-                    video.currentTime = (percent / 100) * video.duration
-                }}
-                onDragging={onDragging}
-              />
-            </div>
-            <span className="bigv-pip-time">{formatTime(time.duration)}</span>
-          </div>
-        )}
       </div>
     </>
   )

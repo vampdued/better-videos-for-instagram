@@ -249,6 +249,21 @@
     "message": "Mute / unmute"
   },
   "keyboardShortcutsHint": {
-    "message": "Reels: Space keeps Instagram’s behavior; use K to play/pause. Feed, Story videos and PiP also accept Space for playback. Reels/Stories: ↑ / ↓ keeps native navigation; use + / − for volume. Feed/PiP also accepts ↑ / ↓ for volume. In Feed, hover or select a video first. Text fields and menus keep their keys. Photo Story PiP: ← / → switches Stories."
+    "message": "Reels: Space keeps Instagram’s behavior; use K to play/pause. Feed, Story videos and PiP also accept Space for playback. Stories: all arrow keys keep Instagram’s navigation; use J / L to seek. Reels: ↑ / ↓ keeps native navigation. Use + / − for volume; Feed/PiP also accepts ↑ / ↓. In Feed, hover or select a video first. Text fields and menus keep their keys. Photo Story PiP: ← / → switches Stories."
+  },
+  "disableLoopVideosLabel": {
+    "message": "Disable video looping"
+  },
+  "backgroundPlaybackLabel": {
+    "message": "Keep playing in the background"
+  },
+  "backgroundPlaybackDescription": {
+    "message": "Keep the selected video playing when you switch tabs or windows. Off by default."
+  },
+  "disableLoopVideosDescription": {
+    "message": "Stop Feed and Reels videos at the end. Auto-skip can still advance to the next Reel."
+  },
+  "keyboardShortcutsDescription": {
+    "message": "Enable the extension’s playback shortcuts in Instagram and Picture-in-Picture."
   }
 }

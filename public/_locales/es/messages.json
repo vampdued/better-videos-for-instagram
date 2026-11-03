@@ -225,6 +225,21 @@
     "message": "Silenciar / activar sonido"
   },
   "keyboardShortcutsHint": {
-    "message": "Reels: Space conserva el comportamiento de Instagram; usa K para reproducir/pausar. En el feed, los vídeos de Stories y PiP también sirve Space. Reels/Stories: ↑ / ↓ conserva la navegación nativa; usa + / − para el volumen. En el feed/PiP también sirve ↑ / ↓. En el feed, pasa el cursor sobre un vídeo o selecciónalo. Los campos de texto y menús conservan sus teclas. Story de foto en PiP: ← / → cambia de Story."
+    "message": "Reels: Espacio conserva el comportamiento de Instagram; K reproduce/pausa. El feed, los vídeos de Stories y PiP también aceptan Espacio. Stories: todas las flechas quedan para Instagram; J / L retrocede/avanza. Reels: ↑ / ↓ conserva la navegación nativa. Volumen: + / −, o ↑ / ↓ en el feed/PiP. En el feed, primero pasa el cursor sobre un vídeo o selecciónalo. Los campos de texto y menús conservan sus teclas. Stories de fotos en PiP: ← / → cambia de Story."
+  },
+  "disableLoopVideosLabel": {
+    "message": "Desactivar la repetición de videos"
+  },
+  "backgroundPlaybackLabel": {
+    "message": "Seguir reproduciendo en segundo plano"
+  },
+  "backgroundPlaybackDescription": {
+    "message": "Mantiene el video seleccionado en reproducción al cambiar de pestaña o ventana. Desactivado por defecto."
+  },
+  "disableLoopVideosDescription": {
+    "message": "Detiene los videos del feed y Reels al terminar. El salto automático puede seguir avanzando al siguiente Reel."
+  },
+  "keyboardShortcutsDescription": {
+    "message": "Activar los atajos de reproducción de la extensión en Instagram e imagen en imagen."
   }
 }

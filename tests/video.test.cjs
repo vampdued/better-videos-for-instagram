@@ -29,13 +29,15 @@ function video({
   }
 }
 
-const { getActiveInstagramVideo, isInstagramVideo } = loadSource(
-  "src/features/instagram/media/video.ts",
-  {
-    URL,
-    window: { innerWidth: 1200, innerHeight: 800 }
-  }
-)
+const {
+  getActiveInstagramVideo,
+  isInstagramVideo,
+  getVisibleMediaDialog,
+  pauseVideosOutsideDialog
+} = loadSource("src/features/instagram/media/video.ts", {
+  URL,
+  window: { innerWidth: 1200, innerHeight: 800 }
+})
 
 test("Instagram CDN HTTPS sources and source-element currentSrc are supported", () => {
   for (const src of [
@@ -113,4 +115,42 @@ test("each candidate's geometry is read once per selection", () => {
   }
   getActiveInstagramVideo([candidate])
   assert.equal(reads, 1)
+})
+
+test("an opened media dialog outranks playing previews and only background Instagram media is paused", () => {
+  const preview = video()
+  const opened = video({ paused: true })
+  const unrelated = video({ src: "https://example.test/video.mp4" })
+  const all = [preview, opened, unrelated]
+  for (const item of all)
+    item.pause = () => {
+      item.paused = true
+    }
+  const dialog = {
+    getClientRects: () => [{}],
+    querySelectorAll: () => [opened],
+    contains: (item) => item === opened
+  }
+  const doc = {
+    querySelectorAll: (selector) => (selector === "video" ? all : [dialog])
+  }
+  for (const item of [...all, dialog]) item.ownerDocument = doc
+  assert.equal(getActiveInstagramVideo(all), opened)
+  pauseVideosOutsideDialog(getVisibleMediaDialog(doc))
+  assert.equal(preview.paused, true)
+  assert.equal(opened.paused, true)
+  assert.equal(unrelated.paused, false)
+  doc.fullscreenElement = {}
+  assert.equal(
+    getVisibleMediaDialog(doc),
+    null,
+    "explicit fullscreen takes priority"
+  )
+  delete doc.fullscreenElement
+  dialog.querySelectorAll = () => []
+  assert.equal(
+    getVisibleMediaDialog(doc),
+    null,
+    "comments-only dialogs do not suppress playback"
+  )
 })

@@ -13,6 +13,7 @@ import { pictureInPicture } from "@/utils/pip/controller"
 import { isInstagramVideo } from "@/features/instagram/media/video"
 import { getVideoContainer } from "@/utils/media/container"
 import { observeInstagramKeyboard } from "./keyboard"
+import { observeBackgroundPlayback } from "./background-playback"
 
 export function startInstagram() {
   let disposed = false
@@ -26,6 +27,7 @@ export function startInstagram() {
   let storageAvailable = true
   let stopAudioGuard: (() => void) | undefined
   let stopKeyboard: (() => void) | undefined
+  let stopBackgroundPlayback: (() => void) | undefined
   let storedClickMode: unknown
   let storedLegacyClick: unknown
   const syncClickMode = () =>
@@ -33,6 +35,7 @@ export function startInstagram() {
 
   const load = () => {
     stopKeyboard ??= observeInstagramKeyboard()
+    stopBackgroundPlayback ??= observeBackgroundPlayback()
     stopAudioGuard ??= observeFullscreenAudio()
     const mode = getPageMode(location.pathname)
     pictureInPicture.setPageMode(mode)
@@ -63,6 +66,8 @@ export function startInstagram() {
     stopAudioGuard = undefined
     stopKeyboard?.()
     stopKeyboard = undefined
+    stopBackgroundPlayback?.()
+    stopBackgroundPlayback = undefined
   }
 
   let previousUrl = ""

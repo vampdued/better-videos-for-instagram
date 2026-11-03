@@ -1,4 +1,4 @@
-import { setVideoPlaying } from "../fullscreen/playback"
+import { setVideoPlaying, setVideoTime } from "../fullscreen/playback"
 import {
   getVideoAudioLimit,
   setUserAudio,
@@ -105,7 +105,7 @@ export function runPlayerCommand(
         Math.max(before + command.amount, 0),
         video.duration
       )
-      video.currentTime = after
+      setVideoTime(video, after)
       const delta = after - before
       if (!delta) return
       feedback = { kind: "seek", value: delta }
@@ -148,6 +148,8 @@ export function observePlayerKeyboard(
   doc: Document,
   getVideo: () => HTMLVideoElement | null,
   options: KeyboardAudio & {
+    enabled?: () => boolean
+    seekArrows?: () => boolean
     volumeArrows?: () => boolean
     spaceToggle?: () => boolean
     setPlaying?: (video: HTMLVideoElement, playing: boolean) => void
@@ -155,6 +157,12 @@ export function observePlayerKeyboard(
   } = {}
 ) {
   const keydown = (event: KeyboardEvent) => {
+    if (options.enabled?.() === false) return
+    if (
+      (event.key === "ArrowLeft" || event.key === "ArrowRight") &&
+      options.seekArrows?.() === false
+    )
+      return
     if (event.key === " " && options.spaceToggle?.() === false) return
     if (
       (event.key === "ArrowUp" || event.key === "ArrowDown") &&

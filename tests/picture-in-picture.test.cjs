@@ -115,6 +115,9 @@ function setup(native = false) {
       getAttribute(key) {
         return attributes.get(key) ?? null
       },
+      hasAttribute(key) {
+        return this.getAttribute(key) !== null
+      },
       removeAttribute(key) {
         attributes.delete(key)
       },

@@ -103,7 +103,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
+  margin-bottom: 6px;
   min-width: 0;
 }
 .bigv-story-timeline > span {
@@ -126,17 +126,103 @@
 }
 .bigv-story-player .better-ig-progress-tooltip.stories {
   top: auto;
-  bottom: 64px;
+  bottom: 18px;
   transform-origin: center bottom;
-}
-.bigv-story-player.is-compact .better-ig-progress-tooltip.stories {
-  bottom: 90px;
 }
 .bigv-story-player.is-photo .bigv-player-dock.stories {
   display: flex;
   justify-content: center;
 }
+[data-bigv-story-progress] {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.bigv-controller-host .bigv-story-player.is-integrated {
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  transform: none;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.bigv-story-player.is-integrated .bigv-story-timeline {
+  position: absolute;
+  height: 3px;
+  margin: 0;
+  pointer-events: auto;
+}
+
+.bigv-story-player.is-integrated
+  .better-ig-controller
+  .progress-bar-horizontal {
+  height: 3px;
+}
+
+.bigv-story-player.is-integrated .better-ig-controller .baseline .dragarea {
+  bottom: -7px;
+}
+
+.bigv-story-player.is-integrated .bigv-player-dock.stories {
+  position: absolute;
+  top: 78px;
+  right: 8px;
+  bottom: auto;
+  left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: auto;
+  padding: 3px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  background: rgb(20 20 20 / 75%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.bigv-story-player.is-integrated.is-visible .bigv-player-dock.stories,
+.bigv-story-player.is-integrated
+  .bigv-player-dock.stories:has(:focus-visible:not([data-bigv-pointer-focus])) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.bigv-story-player.is-integrated .bigv-story-options {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bigv-story-player.is-integrated .bigv-player-dock.stories .bigv-speed-popup {
+  top: 0;
+  right: calc(100% + 8px);
+  bottom: auto;
+}
+
+.bigv-story-player.is-integrated
+  .better-ig-volume-control.in-dock
+  .better-ig-progress-bar-vertical {
+  top: 0;
+  right: calc(100% + 8px);
+  bottom: auto;
+  left: auto;
+  transform: none;
+}
+
+.bigv-story-player.is-integrated .better-ig-progress-tooltip.stories {
+  top: 20px;
+  bottom: auto;
+  transform-origin: center top;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .bigv-story-player.is-integrated .bigv-player-dock.stories,
   .bigv-story-player {
     transition: none;
   }

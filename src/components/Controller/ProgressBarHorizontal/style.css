@@ -24,7 +24,9 @@
 }
 
 .better-ig-controller .progress-bar-horizontal .baseline:hover,
-.better-ig-controller .progress-bar-horizontal .baseline:focus-within,
+.better-ig-controller
+  .progress-bar-horizontal
+  .baseline:has(.dragarea:focus-visible:not([data-bigv-pointer-focus])),
 .better-ig-controller .progress-bar-horizontal .baseline.dragging {
   height: 5px;
   background: rgb(0 0 0 / 48%);
@@ -69,7 +71,7 @@
 .better-ig-controller .progress-bar-horizontal:hover .progress-handle,
 .better-ig-controller
   .progress-bar-horizontal
-  .baseline:focus-within
+  .baseline:has(.dragarea:focus-visible:not([data-bigv-pointer-focus]))
   .progress-handle,
 .better-ig-controller
   .progress-bar-horizontal
@@ -90,7 +92,15 @@
   touch-action: none;
 }
 
-.better-ig-controller .progress-bar-horizontal .dragarea:focus-visible {
+.better-ig-controller
+  .progress-bar-horizontal
+  .dragarea[data-bigv-pointer-focus] {
+  outline: none;
+}
+
+.better-ig-controller
+  .progress-bar-horizontal
+  .dragarea:focus-visible:not([data-bigv-pointer-focus]) {
   outline: 2px solid #fff;
   outline-offset: 3px;
   border-radius: 4px;
