@@ -27,6 +27,7 @@ async function fixture(
     legacyClick,
     documentPip = false,
     keyboardShortcuts,
+    mediaSourceHandle = false,
     expectControls = true
   } = {}
 ) {
@@ -242,6 +243,9 @@ async function fixture(
     })
   })
   await page.goto(`https://www.instagram.com${route}`)
+  const handleSource = mediaSourceHandle
+    ? await require("./media-source-handle-fixture.cjs")(page)
+    : null
   const guard = fs
     .readdirSync(base)
     .find((file) => /^instagram-pip-main\.js$/.test(file))
@@ -256,7 +260,7 @@ async function fixture(
     await page.waitForSelector("[data-bigv-ready]", { timeout: 10000 })
   else
     await page.waitForFunction(async () => (await window.diagnose())?.enabled)
-  return { page, errors }
+  return { page, errors, handleSource }
 }
 
 ;(async () => {

@@ -10,7 +10,7 @@ import { observeFullscreenAudio } from "@/utils/fullscreen/audio"
 import { readInitialSettings } from "@/utils/storage/initial-settings"
 import { getPageMode } from "@/features/instagram/runtime/page-mode"
 import { pictureInPicture } from "@/utils/pip/controller"
-import { isInstagramVideo } from "@/features/instagram/media/video"
+import { getInstagramVideoSourceType } from "@/features/instagram/media/video"
 import { getVideoContainer } from "@/utils/media/container"
 import { observeInstagramKeyboard } from "./keyboard"
 import { observeBackgroundPlayback } from "./background-playback"
@@ -142,7 +142,8 @@ export function startInstagram() {
     if (sender.id !== chrome.runtime.id || message?.type !== "bigv-diagnostics")
       return
     const videos = Array.from(document.querySelectorAll("video"))
-    const supported = videos.filter(isInstagramVideo)
+    const sourceTypes = videos.map(getInstagramVideoSourceType)
+    const supported = videos.filter((_, index) => sourceTypes[index] !== null)
     respond({
       version: chrome.runtime.getManifest().version,
       enabled: controllerEnabled,
@@ -158,11 +159,10 @@ export function startInstagram() {
         .length,
       controllers: feed.count + reels.count + stories.count,
       sources: {
-        blob: supported.filter((video) =>
-          (video.currentSrc || video.src).startsWith("blob:")
-        ).length,
-        https: supported.filter((video) =>
-          (video.currentSrc || video.src).startsWith("https:")
+        blob: sourceTypes.filter((type) => type === "blob").length,
+        https: sourceTypes.filter((type) => type === "https").length,
+        mediaSourceHandle: sourceTypes.filter(
+          (type) => type === "mediaSourceHandle"
         ).length
       }
     })

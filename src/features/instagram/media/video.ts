@@ -1,18 +1,31 @@
 import { getVideoSource } from "../bridges/spritesheet-client"
 
-export function isInstagramVideo(video: HTMLVideoElement) {
-  if (video.closest?.("[bigv-inject], [data-bigv-pip-mirror]")) return false
+export function getInstagramVideoSourceType(
+  video: HTMLVideoElement
+): "blob" | "https" | "mediaSourceHandle" | null {
+  if (video.closest?.("[bigv-inject], [data-bigv-pip-mirror]")) return null
+  // Worker-backed MSE has no media URL. Inspect the public browser interface
+  // in this world; do not depend on page globals or accept camera/call streams.
+  if (video.srcObject != null)
+    return typeof MediaSourceHandle !== "undefined" &&
+      video.srcObject instanceof MediaSourceHandle
+      ? "mediaSourceHandle"
+      : null
   const source = getVideoSource(video)
-  if (source.startsWith("blob:")) return true
+  if (source.startsWith("blob:")) return "blob"
   try {
     const url = new URL(source)
-    return (
-      url.protocol === "https:" &&
+    return url.protocol === "https:" &&
       /(^|\.)(instagram\.com|cdninstagram\.com|fbcdn\.net)$/.test(url.hostname)
-    )
+      ? "https"
+      : null
   } catch {
-    return false
+    return null
   }
+}
+
+export function isInstagramVideo(video: HTMLVideoElement) {
+  return getInstagramVideoSourceType(video) !== null
 }
 
 export function isVideoInViewport(video: HTMLVideoElement) {

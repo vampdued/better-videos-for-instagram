@@ -370,8 +370,54 @@ const { chromium } = require("playwright")
       await page.locator("video").evaluate((video) => video.paused),
       true
     )
+    await worker.evaluate(() =>
+      chrome.storage.sync.set({
+        "bigv-controller-enabled": false,
+        "bigv-disable-loop-videos": false
+      })
+    )
+    await page.goto("https://www.instagram.com/reels/worker-handle/")
+    const handleSource = await require("./media-source-handle-fixture.cjs")(
+      page
+    )
+    assert.deepEqual(handleSource, {
+      supported: true,
+      isHandle: true,
+      src: "",
+      currentSrc: ""
+    })
+    assert.equal(await page.locator("[data-bigv-controller]").count(), 0)
+    await worker.evaluate(() =>
+      chrome.storage.sync.set({ "bigv-controller-enabled": true })
+    )
+    await page.waitForSelector("[data-bigv-ready]")
+    const handleDiagnostic = await worker.evaluate(async () => {
+      const [tab] = await chrome.tabs.query({
+        url: "https://www.instagram.com/*"
+      })
+      return chrome.tabs.sendMessage(tab.id, { type: "bigv-diagnostics" })
+    })
+    assert.equal(handleDiagnostic.supportedVideos, 1)
+    assert.equal(handleDiagnostic.controllers, 1)
+    assert.deepEqual(handleDiagnostic.sources, {
+      blob: 0,
+      https: 0,
+      mediaSourceHandle: 1
+    })
+    await page.locator("video").hover()
+    await page.keyboard.press("k")
+    await page.waitForFunction(() => !document.querySelector("video").paused)
+    await page.keyboard.press("k")
+    await page.waitForFunction(() => document.querySelector("video").paused)
+    await page.keyboard.press("ArrowRight")
+    await page.waitForFunction(
+      () => document.querySelector("video").currentTime > 0
+    )
+    await require("./media-source-handle-fixture.cjs")(page)
+    await page.waitForSelector("[data-bigv-ready]")
+    assert.equal(await page.locator("[data-bigv-controller]").count(), 1)
     console.log(
-      "Real extension: MAIN at document_start, real media, scripted loop prevention and explicit replay, opt-in background playback and live opt-out, legacy settings, keyboard controls, popup changes, welcome redirect, update opt-out and native audio identification passed."
+      "Real extension: worker MediaSourceHandle detection across the isolated world, URL-less playback/seek and reused handles; MAIN at document_start, real media, loop prevention, background playback, legacy settings, keyboard controls, popup changes, welcome redirect and native audio identification passed."
     )
   } finally {
     await context.close()

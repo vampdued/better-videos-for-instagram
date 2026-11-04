@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict")
 const test = require("node:test")
 const loadSource = require("./load-source.cjs")
+class MediaSourceHandle {}
 
 function video({
   top = 100,
@@ -32,11 +33,53 @@ function video({
 const {
   getActiveInstagramVideo,
   isInstagramVideo,
+  getInstagramVideoSourceType,
   getVisibleMediaDialog,
   pauseVideosOutsideDialog
 } = loadSource("src/features/instagram/media/video.ts", {
   URL,
+  MediaSourceHandle,
   window: { innerWidth: 1200, innerHeight: 800 }
+})
+
+test("worker MediaSourceHandle videos are supported without src/currentSrc and remain selectable", () => {
+  const handleVideo = {
+    ...video({ src: "", paused: true }),
+    srcObject: new MediaSourceHandle()
+  }
+  assert.equal(isInstagramVideo(handleVideo), true)
+  assert.equal(getInstagramVideoSourceType(handleVideo), "mediaSourceHandle")
+  assert.equal(
+    getActiveInstagramVideo([video({ top: 900 }), handleVideo]),
+    handleVideo
+  )
+  handleVideo.srcObject = null
+  assert.equal(isInstagramVideo(handleVideo), false)
+  handleVideo.srcObject = new MediaSourceHandle()
+  assert.equal(isInstagramVideo(handleVideo), true)
+})
+
+test("opaque-source support does not accept empty media, streams, arbitrary objects or extension mirrors", () => {
+  for (const srcObject of [
+    null,
+    undefined,
+    {},
+    { constructor: { name: "MediaSourceHandle" } }
+  ])
+    assert.equal(isInstagramVideo({ ...video({ src: "" }), srcObject }), false)
+  const mirror = {
+    ...video({ src: "" }),
+    srcObject: new MediaSourceHandle(),
+    closest: () => ({})
+  }
+  assert.equal(isInstagramVideo(mirror), false)
+  const withoutHandleAPI = loadSource("src/features/instagram/media/video.ts", {
+    URL
+  })
+  assert.equal(
+    withoutHandleAPI.isInstagramVideo({ ...video({ src: "" }), srcObject: {} }),
+    false
+  )
 })
 
 test("Instagram CDN HTTPS sources and source-element currentSrc are supported", () => {

@@ -46,6 +46,46 @@ module.exports = async function playerUiRegressions(
   results
 ) {
   for (const target of builds) {
+    for (const route of ["/", "/reels/fixture/", "/p/fixture/"]) {
+      const { page, errors, handleSource } = await fixture(browser, target, {
+        route,
+        mediaSourceHandle: true
+      })
+      if (!handleSource.supported) {
+        results.push(
+          `${target}${route}: worker MediaSourceHandle unavailable in this browser`
+        )
+        await page.close()
+        continue
+      }
+      assert.equal(handleSource.isHandle, true)
+      assert.equal(handleSource.src, "")
+      assert.equal(handleSource.currentSrc, "")
+      const diagnostic = await page.evaluate(() => window.diagnose())
+      assert.equal(diagnostic.supportedVideos, 1)
+      assert.equal(diagnostic.controllers, 1)
+      assert.deepEqual(diagnostic.sources, {
+        blob: 0,
+        https: 0,
+        mediaSourceHandle: 1
+      })
+      await page.locator("video").hover()
+      await page.keyboard.press("k")
+      assert.equal(
+        await page.locator("video").evaluate((video) => video.paused),
+        false
+      )
+      await page.keyboard.press("k")
+      assert.equal(
+        await page.locator("video").evaluate((video) => video.paused),
+        true
+      )
+      assert.deepEqual(errors, [])
+      results.push(
+        `${target}${route}: URL-less worker MediaSourceHandle is injected, selected, controlled and counted in diagnostics`
+      )
+      await page.close()
+    }
     for (const mode of ["native", "pause", "pause-reels"]) {
       const { page, errors } = await fixture(browser, target, {
         route: "/explore/",
