@@ -5,6 +5,7 @@ import {
 import type { ClickMode } from "@/utils/playback/click-mode"
 
 import { Feed, Reels, Stories } from "@/features/instagram/pages"
+import DirectMessages from "@/features/instagram/pages/DirectMessages"
 import { resolveClickMode } from "@/utils/playback/click-mode"
 import { observeFullscreenAudio } from "@/utils/fullscreen/audio"
 import { readInitialSettings } from "@/utils/storage/initial-settings"
@@ -21,6 +22,7 @@ export function startInstagram() {
   const feed = new Feed()
   const reels = new Reels()
   const stories = new Stories()
+  const messages = new DirectMessages()
   const stopSettingsWatch: (() => void)[] = []
 
   let controllerEnabled = true
@@ -30,8 +32,10 @@ export function startInstagram() {
   let stopBackgroundPlayback: (() => void) | undefined
   let storedClickMode: unknown
   let storedLegacyClick: unknown
-  const syncClickMode = () =>
+  const syncClickMode = () => {
     feed.setClickMode(resolveClickMode(storedClickMode, storedLegacyClick))
+    messages.setClickMode(resolveClickMode(storedClickMode, storedLegacyClick))
+  }
 
   const load = () => {
     stopKeyboard ??= observeInstagramKeyboard()
@@ -44,13 +48,16 @@ export function startInstagram() {
         feed.delete()
         stories.delete()
         reels.wayToInject()
+        messages.wayToInject()
         break
       case "stories":
+        messages.delete()
         feed.delete()
         reels.delete()
         stories.wayToInject()
         break
       default:
+        messages.delete()
         reels.delete()
         stories.delete()
         feed.wayToInject()
@@ -62,6 +69,7 @@ export function startInstagram() {
     feed.delete()
     reels.delete()
     stories.delete()
+    messages.delete()
     stopAudioGuard?.()
     stopAudioGuard = undefined
     stopKeyboard?.()
@@ -157,7 +165,7 @@ export function startInstagram() {
         .length,
       missingContainer: supported.filter((video) => !getVideoContainer(video))
         .length,
-      controllers: feed.count + reels.count + stories.count,
+      controllers: feed.count + reels.count + stories.count + messages.count,
       sources: {
         blob: sourceTypes.filter((type) => type === "blob").length,
         https: sourceTypes.filter((type) => type === "https").length,

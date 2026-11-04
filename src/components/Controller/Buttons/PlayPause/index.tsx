@@ -10,7 +10,13 @@ export function PlaybackIcon({ paused }: { paused: boolean }) {
   )
 }
 
-export default function PlayPause({ video }: { video: HTMLVideoElement }) {
+export default function PlayPause({
+  video,
+  className = ""
+}: {
+  video: HTMLVideoElement
+  className?: string
+}) {
   const [paused, setPaused] = useState(video.paused)
   useEffect(() => {
     const sync = () => setPaused(video.paused)
@@ -23,7 +29,7 @@ export default function PlayPause({ video }: { video: HTMLVideoElement }) {
   return (
     <button
       type="button"
-      className="bigv-story-play bigv-control"
+      className={`bigv-story-play bigv-control ${className}`}
       aria-label={t(paused ? "playLabel" : "pauseLabel")}
       title={t(paused ? "playLabel" : "pauseLabel")}
       onClick={() => void setVideoPlaying(video, video.paused)}>

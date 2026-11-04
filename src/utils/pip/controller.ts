@@ -3,7 +3,7 @@ import type { PageMode } from "../../features/instagram/runtime/page-mode"
 import { PIP_INITIAL_SIZE } from "./window"
 import { allowVideoReplay, setVideoPlaying } from "../fullscreen/playback"
 import { navigateReel } from "../../features/instagram/navigation/reels"
-import { getActiveInstagramVideo } from "../../features/instagram/media/video"
+import { getActiveInstagramReel } from "../../features/instagram/media/video"
 import {
   isStoryImage,
   type StoryMedia
@@ -288,7 +288,7 @@ export class PictureInPictureController {
       direction,
       this.pipWindow ?? window,
       () => {
-        this.follow(getActiveInstagramVideo())
+        this.follow(getActiveInstagramReel())
       }
     )
   }

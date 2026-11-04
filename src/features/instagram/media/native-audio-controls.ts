@@ -1,9 +1,27 @@
 // Match audio actions rather than all Instagram overlay buttons. Tags, captions,
 // soundtrack links and navigation must keep their native behavior.
+const isAudioLabel = (label: string) =>
+  /^(?:unmute|mute|toggle (?:audio|sound)|turn (?:sound|audio) (?:on|off)|(?:audio|sound)(?: is)? (?:muted|unmuted|playing|on|off)|(?:adjust )?volume(?: (?:on|off))?|sesi (?:aç|kapat)|ses (?:açık|kapalı)|activer le son|désactiver le son|ton (?:ein|aus)|stummschalten|stumm(?:schaltung)? aufheben|activar (?:el )?sonido|silenciar|включить звук|выключить звук|كتم الصوت|إلغاء كتم الصوت|تشغيل الصوت)[.!]?$/iu.test(
+    label.trim()
+  )
+
 export function isNativeAudioControl(control: Element) {
   if (
     control.closest("[data-bigv-controller], .bigv-control") ||
-    control.querySelector("video")
+    control.querySelector('video, a[href], [role="link"], img, time')
+  )
+    return false
+  // Responsive Reels can put metadata and mute controls inside one role=button.
+  // Preserve that wrapper; the scan will still find its individual audio nodes.
+  let text = control.textContent ?? ""
+  for (const icon of control.querySelectorAll("svg"))
+    if (icon.textContent) text = text.replace(icon.textContent, "")
+  text = text.trim()
+  if (
+    text &&
+    /[\p{L}\p{N}]/u.test(text) &&
+    !isAudioLabel(text) &&
+    !/^\d+(?:[.,]\d+)?\s*%?$/.test(text)
   )
     return false
   const labels = [
@@ -17,11 +35,7 @@ export function isNativeAudioControl(control: Element) {
     ])
     .filter(Boolean)
   return (
-    labels.some((label) =>
-      /^(?:unmute|mute|toggle (?:audio|sound)|turn (?:sound|audio) (?:on|off)|(?:audio|sound)(?: is)? (?:muted|unmuted|playing|on|off)|(?:adjust )?volume(?: (?:on|off))?|sesi (?:aç|kapat)|ses (?:açık|kapalı)|activer le son|désactiver le son|ton (?:ein|aus)|stummschalten|stumm(?:schaltung)? aufheben|activar (?:el )?sonido|silenciar|включить звук|выключить звук|كتم الصوت|إلغاء كتم الصوت|تشغيل الصوت)[.!]?$/iu.test(
-        label!.trim()
-      )
-    ) ||
+    labels.some((label) => isAudioLabel(label!)) ||
     // Fingerprint observed on the live Instagram muted-speaker icon. This
     // also recognizes that icon with localized or missing accessible labels.
     Array.from(control.querySelectorAll('svg[viewBox="0 0 48 48"] path')).some(
@@ -140,9 +154,10 @@ export function hideNativeVideoAudio(video: HTMLVideoElement) {
   const observer = new MutationObserver(scan)
   observer.observe(scope, {
     childList: true,
+    characterData: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["aria-label", "title", "data-testid", "d"]
+    attributeFilter: ["aria-label", "title", "data-testid", "d", "href", "role"]
   })
   return () => {
     observer.disconnect()

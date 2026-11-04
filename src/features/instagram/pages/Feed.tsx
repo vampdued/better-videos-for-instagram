@@ -4,6 +4,7 @@ import {
   isVideoInViewport
 } from "@/features/instagram/media/video"
 import { isExplorePreview } from "@/features/instagram/media/explore"
+import { isInstagramDirectPage } from "@/features/instagram/media/player-context"
 
 import IntervalInjector from "../../player/IntervalInjector"
 
@@ -28,7 +29,9 @@ export default class Feed extends IntervalInjector {
   public override injectMethod(): void {
     // A post can open over Explore while its URL changes to /p/ or /reel/.
     // Use the visible media dialog to keep background tiles out in either URL.
-    this.mediaDialog = getVisibleMediaDialog(document)
+    this.mediaDialog = isInstagramDirectPage(location.pathname)
+      ? null
+      : getVisibleMediaDialog(document)
     pauseVideosOutsideDialog(this.mediaDialog)
     super.injectMethod()
   }

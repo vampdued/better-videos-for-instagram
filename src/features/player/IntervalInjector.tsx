@@ -76,6 +76,7 @@ export default class IntervalInjector extends Injector {
           (record) =>
             record.type === "childList" ||
             record.attributeName === "src" ||
+            record.attributeName === "controls" ||
             record.attributeName === "srcset"
         )
       )
@@ -85,7 +86,7 @@ export default class IntervalInjector extends Injector {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["src", "srcset"]
+      attributeFilter: ["src", "srcset", "controls"]
     })
     document.addEventListener("scroll", this.schedule, true)
     document.addEventListener("loadedmetadata", this.schedule, true)

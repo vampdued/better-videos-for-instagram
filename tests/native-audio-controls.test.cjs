@@ -61,6 +61,17 @@ test("nested native volume labels are checked separately and video containers ne
   assert.equal(isNativeAudioControl(wrapper), false)
 })
 
+test("responsive Reel overlays containing account links or caption text are not audio controls", () => {
+  const overlay = control(null)
+  overlay.querySelectorAll = () => [control("Audio is muted")]
+  overlay.querySelector = (selector) =>
+    selector.includes("a[href]") ? {} : null
+  assert.equal(isNativeAudioControl(overlay), false)
+  overlay.querySelector = () => null
+  overlay.textContent = "example_account A Reel caption Original audio"
+  assert.equal(isNativeAudioControl(overlay), false)
+})
+
 test("audio scope reaches the live eight-wrapper layout, stops at another video and respects article boundaries", () => {
   const nodes = Array.from({ length: 12 }, () => ({
     tagName: "DIV",

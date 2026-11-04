@@ -298,6 +298,11 @@
   background: rgb(255 255 255 / 12%);
 }
 
+.bigv-player-dock .bigv-dm-audio-play svg {
+  width: 16px;
+  height: 16px;
+}
+
 .bigv-player-dock button:focus-visible {
   outline: 2px solid #fff;
   outline-offset: -2px;

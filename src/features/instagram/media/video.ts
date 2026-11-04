@@ -1,4 +1,5 @@
 import { getVideoSource } from "../bridges/spritesheet-client"
+import { isInstagramMessageContext } from "./player-context"
 
 export function getInstagramVideoSourceType(
   video: HTMLVideoElement
@@ -76,7 +77,10 @@ export function getVisibleMediaDialog(doc: Document): HTMLElement | null {
       (dialog) =>
         dialog.getClientRects().length > 0 &&
         Array.from(dialog.querySelectorAll("video")).some(
-          (video) => isInstagramVideo(video) && isVideoInViewport(video)
+          (video) =>
+            !isInstagramMessageContext(video) &&
+            isInstagramVideo(video) &&
+            isVideoInViewport(video)
         )
     ) ?? null
   )
@@ -125,4 +129,12 @@ export function getActiveInstagramVideo(
   }
 
   return activeVideo
+}
+
+export function getActiveInstagramReel(
+  videos: Iterable<HTMLVideoElement> = document.querySelectorAll("video")
+) {
+  return getActiveInstagramVideo(
+    Array.from(videos).filter((video) => !isInstagramMessageContext(video))
+  )
 }

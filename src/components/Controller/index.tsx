@@ -10,6 +10,7 @@ import { settings } from "@/utils/storage/settings"
 import { Variant, type DownloadableMedia } from "@/features/player/Injector"
 import { observeAutoSkip } from "@/utils/playback/auto-skip"
 import { disableVideoLoop } from "@/utils/playback/disable-loop"
+import { isInstagramDirectAudioMessage } from "@/features/instagram/media/player-context"
 import type { ClickMode } from "@/utils/playback/click-mode"
 import { setVideoPlaying, setVideoTime } from "@/utils/fullscreen/playback"
 import { pictureInPicture } from "@/utils/pip/controller"
@@ -20,11 +21,12 @@ import {
 } from "@/features/instagram/media/native-audio-controls"
 import { setVideoAudioLimit, type VideoAudioIntent } from "@/utils/media/audio"
 import {
-  getActiveInstagramVideo,
+  getActiveInstagramReel,
   isVideoInViewport
 } from "@/features/instagram/media/video"
 
 import Autoskip from "./Buttons/Autoskip"
+import PlayPause from "./Buttons/PlayPause"
 // import DownloadButton from "./Buttons/Download"
 import FullscreenButton from "./Buttons/Fullscreen"
 import OpenInReels from "./Buttons/OpenInReels"
@@ -53,6 +55,7 @@ export default function Controller({
   variant = Variant.Default,
   clickMode = "pause"
 }: Props) {
+  const audioMessage = isInstagramDirectAudioMessage(video)
   const wasPlayingBeforeDragRef = useRef(false)
   const [progress, setProgress] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -96,7 +99,7 @@ export default function Controller({
     if (fullscreen && !fullscreen.contains(video)) return false
     if (variant === Variant.Stories || variant === Variant.Default) return true
 
-    return getActiveInstagramVideo() === video
+    return getActiveInstagramReel() === video
   }, [variant, video])
 
   const updateAudio = useCallback(() => {
@@ -230,7 +233,7 @@ export default function Controller({
       () =>
         !dragging &&
         /^\/reels?(\/|$)/.test(location.pathname) &&
-        getActiveInstagramVideo() === video &&
+        getActiveInstagramReel() === video &&
         !(
           pauseOnComments &&
           Array.from(
@@ -244,7 +247,7 @@ export default function Controller({
         cancelNavigation?.()
         if (pictureInPicture.advanceReel(video)) return
         cancelNavigation = navigateReel(video, 1, window, () => {
-          if (getActiveInstagramVideo() !== video) cancelNavigation?.()
+          if (getActiveInstagramReel() !== video) cancelNavigation?.()
         })
       }
     )
@@ -363,22 +366,29 @@ export default function Controller({
     <>
       <PlayerFeedback video={video} />
       <PlayerControls video={video} variant={variant}>
+        {audioMessage && (
+          <PlayPause video={video} className="bigv-dm-audio-play" />
+        )}
         <Volume video={video} variant={variant} placement="dock" />
         <PlaybackSpeed placement="dock" />
-        {variant === Variant.Default && clickMode === "pause-reels" && (
-          <OpenInReels video={video} />
-        )}
+        {!audioMessage &&
+          variant === Variant.Default &&
+          clickMode === "pause-reels" && <OpenInReels video={video} />}
         {variant === Variant.Reels && <Autoskip placement="dock" />}
-        <PictureInPictureButton
-          video={video}
-          followReels={variant === Variant.Reels}
-        />
-        <FullscreenButton
-          video={video}
-          controllerId={id}
-          variant={variant}
-          placement="dock"
-        />
+        {!audioMessage && (
+          <>
+            <PictureInPictureButton
+              video={video}
+              followReels={variant === Variant.Reels}
+            />
+            <FullscreenButton
+              video={video}
+              controllerId={id}
+              variant={variant}
+              placement="dock"
+            />
+          </>
+        )}
       </PlayerControls>
       {/* {variant === "default" && downloadableMedia && (
         <DownloadButton data={downloadableMedia} label={false} inside />
@@ -390,6 +400,7 @@ export default function Controller({
             variant={variant}
             progress={progress}
             videoDuration={duration}
+            showVideoPreview={!audioMessage}
             onProgress={seek}
             onDragging={setDragging}
           />

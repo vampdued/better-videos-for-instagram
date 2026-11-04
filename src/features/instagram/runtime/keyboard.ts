@@ -6,6 +6,7 @@ import {
 } from "@/features/instagram/media/stories"
 import {
   getActiveInstagramVideo,
+  getActiveInstagramReel,
   isVideoInViewport
 } from "@/features/instagram/media/video"
 import { getVideoContainer } from "@/utils/media/container"
@@ -72,7 +73,7 @@ export function observeInstagramKeyboard(doc: Document = document) {
           media && !isStoryImage(media) && available.includes(media)
             ? media
             : null
-      } else if (mode === "reels") video = getActiveInstagramVideo(available)
+      } else if (mode === "reels") video = getActiveInstagramReel(available)
       else {
         const target = pointer && doc.elementFromPoint(pointer.x, pointer.y)
         video =

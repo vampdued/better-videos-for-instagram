@@ -170,6 +170,8 @@ async function fixture(
         playback.set(video, state)
         Object.defineProperties(video, {
           readyState: { get: () => 4 },
+          videoWidth: { configurable: true, get: () => 360 },
+          videoHeight: { configurable: true, get: () => 600 },
           duration: { get: () => 10 },
           currentTime: {
             get: () => time,
@@ -238,7 +240,7 @@ async function fixture(
       })
     if (request.request().resourceType() !== "document") return request.abort()
     return request.fulfill({
-      contentType: "text/html",
+      contentType: "text/html; charset=utf-8",
       body: `<!doctype html><html lang="${lang}"><head><style>body{margin:0;background:#eee}main{display:flex;justify-content:center;padding-top:30px}.fixture-player{position:relative;width:min(360px,100vw);height:600px;background:#222}.fixture-player video{display:block;width:100%;height:100%}#tags{position:absolute;top:8px;left:8px}#native-progress{position:absolute;bottom:0;width:100%;height:2px;background:red}</style></head><body><main>${linked ? `<a id="native-link" href="/reel/destination/">${player}</a>` : player}</main></body></html>`
     })
   })

@@ -90,16 +90,45 @@ test("closing or changing the source cancels pending pagination, and retries are
 test("navigation uses the video's real scroll ancestor instead of an unrelated main child", () => {
   const { video, scroller } = setup()
   const nested = {
+    matches: () => false,
+    hasAttribute: () => false,
     clientHeight: 500,
     scrollHeight: 1500,
     style: { overflowY: "auto", scrollSnapType: "none" },
     parentElement: null
   }
   video.parentElement = {
+    matches: () => false,
+    hasAttribute: () => false,
     clientHeight: 400,
     style: { overflowY: "hidden", scrollSnapType: "none" },
     parentElement: nested
   }
   assert.equal(getReelScroller(video), nested)
   assert.notEqual(getReelScroller(video), scroller)
+})
+
+test("Reel navigation never scrolls Direct or floating chat history", () => {
+  for (const floating of [false, true]) {
+    const { video, clock, tick, positions, timers } = setup()
+    if (floating)
+      video.closest = (selector) =>
+        selector.startsWith('[role="article"]') ? {} : null
+    else video.ownerDocument.location = { pathname: "/direct/t/fixture/" }
+    assert.equal(getReelScroller(video), null)
+    navigateReel(video, 1, clock, () => assert.fail("must not navigate"))
+    tick()
+    assert.deepEqual(positions, [])
+    assert.equal(timers.size, 0)
+  }
+})
+
+test("a reused video moved into a chat cancels pending Reel navigation", () => {
+  const { video, clock, tick, positions, timers } = setup()
+  navigateReel(video, 1, clock, () => {})
+  video.closest = (selector) =>
+    selector.startsWith('[role="article"]') ? {} : null
+  tick()
+  assert.deepEqual(positions, [])
+  assert.equal(timers.size, 0)
 })

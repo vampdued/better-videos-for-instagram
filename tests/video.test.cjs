@@ -32,6 +32,7 @@ function video({
 
 const {
   getActiveInstagramVideo,
+  getActiveInstagramReel,
   isInstagramVideo,
   getInstagramVideoSourceType,
   getVisibleMediaDialog,
@@ -132,6 +133,35 @@ test("visible playing videos take priority over paused videos", () => {
     getActiveInstagramVideo([video({ paused: true }), playing]),
     playing
   )
+})
+
+test("playing floating chat GIFs and music never outrank a paused Reel", () => {
+  const reel = video({ paused: true })
+  const message = {
+    ...video(),
+    closest: (selector) => (selector.startsWith('[role="article"]') ? {} : null)
+  }
+  assert.equal(getActiveInstagramVideo([reel, message]), message)
+  assert.equal(getActiveInstagramReel([reel, message]), reel)
+  assert.equal(getActiveInstagramReel([message]), null)
+})
+
+test("a floating chat dialog is not treated as an opened Reel media viewer", () => {
+  const reel = video({ paused: true })
+  const gif = {
+    ...video(),
+    closest: (selector) => (selector.startsWith('[role="article"]') ? {} : null)
+  }
+  const dialog = {
+    getClientRects: () => [{}],
+    querySelectorAll: () => [gif],
+    contains: (item) => item === gif
+  }
+  const doc = { querySelectorAll: () => [dialog] }
+  reel.ownerDocument = doc
+  gif.ownerDocument = doc
+  assert.equal(getVisibleMediaDialog(doc), null)
+  assert.equal(getActiveInstagramReel([reel, gif]), reel)
 })
 
 test("the most visible playing video wins regardless of DOM order", () => {

@@ -1,4 +1,7 @@
+import { isInstagramMessageContext } from "../media/player-context"
+
 export function getReelScroller(video: HTMLVideoElement) {
+  if (isInstagramMessageContext(video)) return null
   const doc = video.ownerDocument
   for (let node = video.parentElement; node; node = node.parentElement) {
     const style = doc.defaultView!.getComputedStyle(node)
@@ -39,7 +42,8 @@ export function navigateReel(
       video.ownerDocument.removeEventListener?.(event, cancel, true)
   }
   const step = () => {
-    if (cancelled || !scroller.isConnected) return cancel()
+    if (cancelled || !scroller.isConnected || isInstagramMessageContext(video))
+      return cancel()
     const maximum = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
     const target = Math.min(destination, maximum)
     // Generate a real scroll at a clamped boundary so lazy-load sentinels can

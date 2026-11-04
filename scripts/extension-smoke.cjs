@@ -416,8 +416,52 @@ const { chromium } = require("playwright")
     await require("./media-source-handle-fixture.cjs")(page)
     await page.waitForSelector("[data-bigv-ready]")
     assert.equal(await page.locator("[data-bigv-controller]").count(), 1)
+    await page.locator("video").evaluate((video) => {
+      video.controls = true
+    })
+    await page.waitForSelector("[data-bigv-controller]", { state: "detached" })
+    assert.equal(
+      await page.locator("video").evaluate((video) => video.controls),
+      true
+    )
+    assert.equal(
+      await page
+        .locator("[data-fixture-native-volume]")
+        .evaluate((control) => getComputedStyle(control).visibility),
+      "visible"
+    )
+    await page.locator("video").evaluate((video) => {
+      video.controls = false
+    })
+    await page.waitForSelector("[data-bigv-ready]")
+    await page.evaluate(() => history.pushState({}, "", "/direct/t/fixture/"))
+    await page.waitForSelector("[data-bigv-controller]", { state: "detached" })
+    assert.equal(await page.locator("video[bigv-injected]").count(), 0)
+    await require("./media-source-handle-fixture.cjs")(page, "video", {
+      audioOnly: true
+    })
+    await page.waitForSelector("[data-bigv-ready]")
+    assert.equal(
+      await page
+        .locator("video")
+        .evaluate((video) => video.videoWidth === 0 && video.videoHeight === 0),
+      true
+    )
+    await page.locator("video").hover()
+    await page.locator(".bigv-dm-audio-play").click()
+    await page.waitForFunction(() => !document.querySelector("video").paused)
+    await page.locator(".bigv-dm-audio-play").click()
+    await page.waitForFunction(() => document.querySelector("video").paused)
+    assert.equal(await page.locator(".better-ig-volume-button").count(), 1)
+    assert.equal(await page.locator(".bigv-speed-button").count(), 1)
+    assert.equal(
+      await page
+        .locator(".bigv-pip-button, .better-ig-fullscreen-button")
+        .count(),
+      0
+    )
     console.log(
-      "Real extension: worker MediaSourceHandle detection across the isolated world, URL-less playback/seek and reused handles; MAIN at document_start, real media, loop prevention, background playback, legacy settings, keyboard controls, popup changes, welcome redirect and native audio identification passed."
+      "Real extension: native-control takeover/restoration and Direct exclusions; worker MediaSourceHandle detection, URL-less playback/seek and reused handles; MAIN at document_start, loop prevention, background playback, legacy settings, keyboard controls, popup changes, welcome redirect and native audio identification passed."
     )
   } finally {
     await context.close()

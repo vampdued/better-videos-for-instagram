@@ -1,9 +1,10 @@
 import { pictureInPicture } from "@/utils/pip/controller"
 import {
-  getActiveInstagramVideo,
+  getActiveInstagramReel,
   getVisibleMediaDialog,
   pauseVideosOutsideDialog
 } from "@/features/instagram/media/video"
+import { isInstagramMessageContext } from "@/features/instagram/media/player-context"
 
 import { Variant } from "../../player/Injector"
 import IntervalInjector, {
@@ -20,13 +21,16 @@ export default class Reels extends IntervalInjector {
     return this.activeVideo === video
   }
   protected override shouldRetainVideo(video: HTMLVideoElement): boolean {
-    return !this.mediaDialog || this.mediaDialog.contains(video)
+    return (
+      !isInstagramMessageContext(video) &&
+      (!this.mediaDialog || this.mediaDialog.contains(video))
+    )
   }
   public override injectMethod(): void {
     const previous = this.activeVideo
     this.mediaDialog = getVisibleMediaDialog(document)
     pauseVideosOutsideDialog(this.mediaDialog)
-    this.activeVideo = getActiveInstagramVideo()
+    this.activeVideo = getActiveInstagramReel()
     pictureInPicture.follow(this.activeVideo)
     super.injectMethod()
     if (this.activeVideo !== previous)

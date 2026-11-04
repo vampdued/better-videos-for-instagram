@@ -4,6 +4,7 @@ import Controller from "@/components/Controller"
 import { isNativeReelClick, type ClickMode } from "@/utils/playback/click-mode"
 import { setVideoPlaying } from "@/utils/fullscreen/playback"
 import { isExplorePreview } from "@/features/instagram/media/explore"
+import { shouldEnhanceInstagramVideo } from "@/features/instagram/media/player-context"
 import {
   isInstagramVideo,
   isVideoInViewport
@@ -126,6 +127,7 @@ export default class Injector {
           controls.querySelector(".better-ig-controller"))
       if (
         record.video.isConnected &&
+        shouldEnhanceInstagramVideo(record.video) &&
         this.shouldRetainVideo(record.video) &&
         record.controller.isConnected &&
         record.controller.parentElement === getVideoContainer(record.video) &&
@@ -192,7 +194,12 @@ export default class Injector {
     }
   }
   public inject(video: HTMLVideoElement, _parent: HTMLElement): void {
-    if (!isInstagramVideo(video) || this.isInjected(video)) return
+    if (
+      !isInstagramVideo(video) ||
+      !shouldEnhanceInstagramVideo(video) ||
+      this.isInjected(video)
+    )
+      return
     const container = getVideoContainer(video)
     if (!container) return
     this.beforeInject()

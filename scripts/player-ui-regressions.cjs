@@ -46,6 +46,309 @@ module.exports = async function playerUiRegressions(
   results
 ) {
   for (const target of builds) {
+    {
+      const { page, errors } = await fixture(browser, target)
+      await page.locator(".fixture-player").hover()
+      await page.locator(".bigv-autoskip").click()
+      await page.waitForFunction(
+        () => localStorage.getItem("bigv-autoskip") === "true"
+      )
+      await page.evaluate(async () => {
+        const reel = document.querySelector(".fixture-player")
+        const scroller = document.createElement("div")
+        scroller.id = "reel-scroller"
+        scroller.style.cssText = "width:360px;height:650px;overflow-y:auto"
+        reel.before(scroller)
+        scroller.append(reel)
+        const next = document.createElement("div")
+        next.style.height = "800px"
+        scroller.append(next)
+
+        const chat = document.createElement("div")
+        chat.id = "floating-chat"
+        chat.setAttribute("aria-label", "Fixture chat")
+        chat.style.cssText =
+          "position:fixed;right:8px;top:20px;width:300px;background:white"
+        chat.innerHTML =
+          '<div id="chat-history" style="height:390px;overflow-y:auto"><div role="article" aria-roledescription="mesaj"><div><video id="chat-gif" src="https://scontent.cdninstagram.com/gif.mp4" loop muted style="width:200px;height:120px"></video></div></div><div role="article" aria-roledescription="message"><div id="chat-music" style="position:relative;width:245px;height:200px"><video id="chat-audio" src="https://scontent.cdninstagram.com/music.mp4" style="width:100%;height:100%"></video></div></div><div style="height:1200px"></div></div><div contenteditable="true" role="textbox" aria-label="Message"></div><input type="file"><video id="chat-upload" src="blob:fixture-upload" style="width:72px;height:72px"></video>'
+        document.body.append(chat)
+        for (const video of chat.querySelectorAll("video"))
+          window.configureVideo(video)
+        Object.defineProperties(chat.querySelector("#chat-audio"), {
+          videoWidth: { get: () => 0 },
+          videoHeight: { get: () => 0 }
+        })
+        await chat.querySelector("#chat-gif").play()
+      })
+      await page.waitForSelector("#chat-music .bigv-dm-audio-play")
+      assert.equal(
+        await page.locator(".fixture-player [data-bigv-ready]").count(),
+        1,
+        "a playing GIF cannot replace the paused Reel"
+      )
+      assert.equal(
+        await page
+          .locator("#chat-gif[bigv-injected], #chat-upload[bigv-injected]")
+          .count(),
+        0
+      )
+      assert.equal(
+        await page
+          .locator(
+            "#floating-chat .bigv-autoskip, #floating-chat .bigv-pip-button, #floating-chat .better-ig-fullscreen-button"
+          )
+          .count(),
+        0
+      )
+      await page.locator("#chat-music").hover()
+      await page.locator("#chat-music .bigv-dm-audio-play").click()
+      assert.equal(
+        await page.locator("#chat-audio").evaluate((video) => video.paused),
+        false
+      )
+      await page.evaluate(() => {
+        for (const id of ["chat-gif", "chat-audio"]) {
+          const video = document.getElementById(id)
+          for (const time of [9.85, 9.9, 9.96, 10]) {
+            video.currentTime = time
+            video.dispatchEvent(new Event("timeupdate"))
+          }
+          video.dispatchEvent(new Event("ended"))
+        }
+      })
+      await page.waitForTimeout(350)
+      assert.equal(
+        await page.locator("#chat-history").evaluate((node) => node.scrollTop),
+        0,
+        "DM completion cannot scroll chat history"
+      )
+      assert.equal(
+        await page.locator("#reel-scroller").evaluate((node) => node.scrollTop),
+        0,
+        "DM completion cannot advance the Reel"
+      )
+      assert.equal(
+        await page.locator(".fixture-player [data-bigv-ready]").count(),
+        1
+      )
+      await page.evaluate(async () => {
+        const reel = document.querySelector(".fixture-player video")
+        reel.loop = true
+        await reel.play()
+        for (const time of [9.85, 9.9, 9.96]) {
+          reel.currentTime = time
+          reel.dispatchEvent(new Event("timeupdate"))
+        }
+      })
+      await page.waitForFunction(
+        () => document.querySelector("#reel-scroller").scrollTop === 650
+      )
+      assert.equal(
+        await page.locator("#chat-history").evaluate((node) => node.scrollTop),
+        0
+      )
+      await page.evaluate(() => {
+        document.querySelector("#reel-scroller").scrollTop = 0
+        history.pushState({}, "", "/")
+      })
+      await page.waitForFunction(
+        async () => (await window.diagnose()).page === "global"
+      )
+      await page.waitForSelector("#chat-music .bigv-dm-audio-play")
+      assert.equal(
+        await page.locator("#chat-music [data-bigv-controller]").count(),
+        1,
+        "Feed takes ownership without duplicate music controls"
+      )
+      assert.equal(
+        await page
+          .locator("#chat-gif[bigv-injected], #chat-upload[bigv-injected]")
+          .count(),
+        0
+      )
+      await page.evaluate(() =>
+        document.querySelector("#floating-chat").remove()
+      )
+      await page.waitForFunction(
+        async () => (await window.diagnose()).controllers === 1
+      )
+      assert.deepEqual(errors, [])
+      results.push(
+        `${target}/floating-direct: playing GIFs and uploads stay native on Reels and Feed; music keeps ordinary controls; auto-skip advances only the Reel without scrolling chat`
+      )
+      await page.close()
+    }
+    {
+      const { page, errors } = await fixture(browser, target, {
+        route: "/",
+        clickMode: "pause"
+      })
+      await page.locator("video").evaluate((video) => {
+        video.controls = true
+      })
+      await page.waitForSelector("[data-bigv-controller]", {
+        state: "detached"
+      })
+      assert.equal(
+        await page.locator("video").evaluate((video) => video.controls),
+        true
+      )
+      assert.equal(await page.locator("#native-audio").isVisible(), true)
+      await page.locator("video").evaluate((video) => {
+        video.controls = false
+      })
+      await page.waitForSelector("[data-bigv-ready]")
+      await page.evaluate(() => history.pushState({}, "", "/direct/t/fixture/"))
+      await page.waitForSelector("[data-bigv-controller]", {
+        state: "detached"
+      })
+      await page.evaluate(() => {
+        const original = document.querySelector("video")
+        original.id = "dm-viewer-video"
+        original.controls = true
+        original.parentElement.setAttribute("role", "dialog")
+        const composer = document.createElement("form")
+        composer.id = "dm-composer"
+        composer.style.cssText =
+          "position:fixed;left:8px;bottom:8px;background:white"
+        composer.innerHTML =
+          '<video id="dm-attachment" src="blob:fixture-upload" style="width:72px;height:72px"></video><button type="button" id="remove-attachment" aria-label="Remove attachment">×</button><div role="textbox" contenteditable="true" aria-label="Message"></div><input type="file" accept="video/*">'
+        composer.querySelector("button").onclick = () =>
+          document.querySelector("#dm-attachment").remove()
+        const messages = document.createElement("div")
+        messages.setAttribute("role", "log")
+        messages.innerHTML =
+          '<video id="dm-gif" loop autoplay muted src="https://scontent.cdninstagram.com/gif.mp4" style="position:fixed;right:0;top:30px;width:120px;height:120px"></video>'
+        for (const video of [
+          ...composer.querySelectorAll("video"),
+          ...messages.querySelectorAll("video")
+        ])
+          window.configureVideo(video)
+        document.body.append(composer, messages)
+      })
+      await page.waitForFunction(async () => {
+        const state = await window.diagnose()
+        return state.supportedVideos === 3 && state.controllers === 0
+      })
+      await page.locator("#dm-gif").evaluate((video) => video.play())
+      await page.evaluate(() => {
+        const music = document.createElement("div")
+        music.id = "dm-music"
+        music.setAttribute("role", "article")
+        music.style.cssText =
+          "position:fixed;right:150px;top:220px;width:245px;height:240px;background:#3b7f92"
+        music.innerHTML =
+          '<video id="dm-music-video" src="https://scontent.cdninstagram.com/music.mp4" style="width:100%;height:100%"></video><button type="button" id="native-music-play" style="position:absolute;inset:0;background:transparent;border:0;color:white"><span>Music preview</span></button>'
+        const audio = music.querySelector("video")
+        window.configureVideo(audio)
+        Object.defineProperties(audio, {
+          videoWidth: { get: () => 0 },
+          videoHeight: { get: () => 0 }
+        })
+        window.nativeMusicClicks = 0
+        music.querySelector("button").onclick = () => {
+          window.nativeMusicClicks++
+          if (audio.paused) void audio.play()
+          else audio.pause()
+        }
+        document.body.append(music)
+      })
+      await page.waitForSelector("#dm-music [data-bigv-ready]")
+      await page.locator("#dm-attachment").click()
+      assert.equal(
+        await page.locator("#dm-attachment").evaluate((video) => video.paused),
+        true
+      )
+      await page.locator('#dm-composer [role="textbox"]').fill("A message")
+      await page.keyboard.press("k")
+      assert.equal(
+        await page.locator('#dm-composer [role="textbox"]').innerText(),
+        "A messagek"
+      )
+      await page.locator("#remove-attachment").click()
+      assert.equal(await page.locator("#dm-attachment").count(), 0)
+      assert.equal(await page.locator("[data-bigv-controller]").count(), 1)
+      assert.equal(
+        await page
+          .locator("#dm-gif[bigv-injected],#dm-viewer-video[bigv-injected]")
+          .count(),
+        0
+      )
+      assert.equal(
+        await page.locator("#dm-gif").evaluate((video) => video.paused),
+        false
+      )
+      await page.locator("#dm-music").hover()
+      await page.locator("#dm-music .bigv-dm-audio-play").click()
+      assert.equal(
+        await page.locator("#dm-music-video").evaluate((video) => video.paused),
+        false
+      )
+      await page.locator("#dm-music .bigv-dm-audio-play").click()
+      assert.equal(
+        await page.locator("#dm-music-video").evaluate((video) => video.paused),
+        true
+      )
+      await page.locator("#dm-music .better-ig-volume-button").hover()
+      const musicVolume = page.locator(
+        '#dm-music .better-ig-progress-bar-vertical [role="slider"]'
+      )
+      await musicVolume.waitFor({ state: "visible" })
+      await musicVolume.press("Home")
+      await page.waitForFunction(
+        () => document.querySelector("#dm-music-video").volume === 0
+      )
+      await musicVolume.press("ArrowUp")
+      await page.waitForFunction(
+        () =>
+          Math.abs(document.querySelector("#dm-music-video").volume - 0.05) <
+          0.001
+      )
+      const musicTimeline = page.locator(
+        '#dm-music .progress-bar-horizontal [role="slider"]'
+      )
+      await musicTimeline.press("ArrowRight")
+      assert.equal(
+        await page
+          .locator("#dm-music-video")
+          .evaluate((video) => video.currentTime > 0),
+        true
+      )
+      await page
+        .locator("#native-music-play")
+        .click({ position: { x: 50, y: 50 } })
+      assert.equal(await page.evaluate(() => window.nativeMusicClicks), 1)
+      assert.equal(
+        await page.locator("#dm-music-video").evaluate((video) => video.paused),
+        false
+      )
+      assert.equal(
+        await page
+          .locator(
+            "#dm-music .bigv-pip-button, #dm-music .better-ig-fullscreen-button"
+          )
+          .count(),
+        0
+      )
+      await page.screenshot({
+        path: path.join(output, `${target}-dm-music-controls.png`)
+      })
+      await page.evaluate(() => {
+        document.querySelector("#dm-music").remove()
+        document.querySelector("#dm-composer").remove()
+        document.querySelector('[role="log"]').remove()
+        document.querySelector("#dm-viewer-video").controls = false
+        document.querySelector(".fixture-player").removeAttribute("role")
+        history.pushState({}, "", "/")
+      })
+      await page.waitForSelector("[data-bigv-ready]")
+      assert.equal(await page.locator("[data-bigv-controller]").count(), 1)
+      assert.deepEqual(errors, [])
+      results.push(
+        `${target}/direct: audio-only music messages retain volume, play/pause and seeking; composer uploads, GIFs and the native viewer remain untouched, and Feed controls recover on return`
+      )
+      await page.close()
+    }
     for (const route of ["/", "/reels/fixture/", "/p/fixture/"]) {
       const { page, errors, handleSource } = await fixture(browser, target, {
         route,
@@ -215,6 +518,9 @@ module.exports = async function playerUiRegressions(
         await page.locator("#native-link video").evaluate((v) => v.paused),
         true
       )
+      await page.waitForSelector("[data-bigv-controller]", {
+        state: "detached"
+      })
       assert.equal(await page.locator("[data-bigv-controller]").count(), 0)
       assert.deepEqual(errors, [])
       results.push(
@@ -476,6 +782,42 @@ module.exports = async function playerUiRegressions(
             document.querySelector("[data-fixture-native-volume]")
           ).display === "none"
       )
+      await page.locator("[data-fixture-native-volume]").evaluate((volume) => {
+        const overlay = document.createElement("div")
+        overlay.id = "responsive-reel-overlay"
+        overlay.setAttribute("role", "button")
+        overlay.style.cssText = "position:absolute;inset:0;pointer-events:none"
+        volume.replaceWith(overlay)
+        overlay.append(volume)
+        const metadata = document.createElement("div")
+        metadata.id = "reel-metadata"
+        metadata.style.cssText =
+          "position:absolute;left:12px;bottom:80px;color:white;pointer-events:auto"
+        metadata.innerHTML =
+          '<a id="reel-account" href="/fixture-profile/" style="color:white">example_account</a><p id="reel-caption">A Reel caption</p><a href="/reels/audio/fixture/" style="color:white">Original audio</a>'
+        overlay.append(metadata)
+        window.nativeMetadataClicks = 0
+        metadata.querySelector("a").addEventListener("click", (event) => {
+          event.preventDefault()
+          window.nativeMetadataClicks++
+        })
+      })
+      await page.waitForFunction(
+        () =>
+          getComputedStyle(
+            document.querySelector("[data-fixture-native-volume]")
+          ).display === "none"
+      )
+      for (const width of [1200, 390]) {
+        await page.setViewportSize({ width, height: 850 })
+        assert.equal(await page.locator("#reel-account").isVisible(), true)
+        assert.equal(await page.locator("#reel-caption").isVisible(), true)
+        await page.locator("#reel-account").click()
+      }
+      assert.equal(await page.evaluate(() => window.nativeMetadataClicks), 2)
+      await page.screenshot({
+        path: path.join(output, `${target}-reels-responsive-metadata.png`)
+      })
       await page.locator("[data-fixture-native-volume]").evaluate((root) => {
         for (const node of root.querySelectorAll("[aria-label]"))
           node.setAttribute("aria-label", "音声")
